@@ -62,6 +62,13 @@ static void on_popover_leave(G_GNUC_UNUSED GtkEventControllerMotion *ctrl,
   gtk_popover_popdown(GTK_POPOVER(user_data));
 }
 
+static void on_button_destroy(GtkWidget *button,
+                              G_GNUC_UNUSED gpointer user_data) {
+  GtkWidget *popover = g_object_get_data(G_OBJECT(button), "popover");
+  if (popover)
+    gtk_widget_unparent(popover);
+}
+
 static void add_kaomoji_button(GtkFlowBox *flow, const char *text) {
   gboolean multiline = (strchr(text, '\n') != NULL);
   const char *label_text = text;
@@ -88,6 +95,8 @@ static void add_kaomoji_button(GtkFlowBox *flow, const char *text) {
     gtk_widget_add_css_class(label, "kaomoji-preview");
     gtk_popover_set_child(GTK_POPOVER(popover), label);
     gtk_widget_set_parent(popover, button);
+    g_object_set_data(G_OBJECT(button), "popover", popover);
+    g_signal_connect(button, "destroy", G_CALLBACK(on_button_destroy), NULL);
 
     GtkEventController *motion = gtk_event_controller_motion_new();
     g_signal_connect(motion, "enter", G_CALLBACK(on_popover_enter), popover);
@@ -139,34 +148,112 @@ static void load_category(MoeMojiWindow *self, const char *kaomoji_dir,
   g_free(cat_path);
 }
 
+static void set_active_chip(MoeMojiWindow *self, int index) {
+  if (index == self->active_chip_index)
+    return;
+  if (self->active_chip_index >= 0 &&
+      (guint)self->active_chip_index < self->category_widgets->len) {
+    CategoryWidgets *old =
+        g_ptr_array_index(self->category_widgets, self->active_chip_index);
+    if (old->chip)
+      gtk_widget_remove_css_class(old->chip, "chip-active");
+  }
+  self->active_chip_index = index;
+  if (index >= 0 && (guint)index < self->category_widgets->len) {
+    CategoryWidgets *cw = g_ptr_array_index(self->category_widgets, index);
+    if (cw->chip)
+      gtk_widget_add_css_class(cw->chip, "chip-active");
+  }
+}
+
+static void scroll_to_category(MoeMojiWindow *self, int index) {
+  CategoryWidgets *cw = g_ptr_array_index(self->category_widgets, index);
+  graphene_point_t p;
+  if (gtk_widget_compute_point(cw->header, GTK_WIDGET(self->content_box),
+                               &GRAPHENE_POINT_INIT(0, 0), &p)) {
+    GtkAdjustment *vadj = gtk_scrolled_window_get_vadjustment(
+        GTK_SCROLLED_WINDOW(self->kaomoji_scroll));
+    gtk_adjustment_set_value(vadj, p.y);
+  }
+}
+
 static void on_chip_clicked(GtkButton *button, gpointer user_data) {
   MoeMojiWindow *self = MOEMOJI_WINDOW(user_data);
-  const char *current = gtk_editable_get_text(GTK_EDITABLE(self->search_entry));
-  const char *name = gtk_button_get_label(button);
-  if (g_strcmp0(current, name) == 0)
-    gtk_editable_set_text(GTK_EDITABLE(self->search_entry), "");
-  else
-    gtk_editable_set_text(GTK_EDITABLE(self->search_entry), name);
+  for (guint i = 0; i < self->category_widgets->len; i++) {
+    CategoryWidgets *cw = g_ptr_array_index(self->category_widgets, i);
+    if (cw->chip == GTK_WIDGET(button)) {
+      scroll_to_category(self, (int)i);
+      return;
+    }
+  }
+}
+
+static void update_chip_from_scroll(MoeMojiWindow *self) {
+  double scroll_pos = gtk_adjustment_get_value(
+      gtk_scrolled_window_get_vadjustment(
+          GTK_SCROLLED_WINDOW(self->kaomoji_scroll)));
+  int best = 0;
+  for (guint i = 0; i < self->category_widgets->len; i++) {
+    CategoryWidgets *cw = g_ptr_array_index(self->category_widgets, i);
+    graphene_point_t p;
+    if (gtk_widget_compute_point(cw->header, GTK_WIDGET(self->content_box),
+                                 &GRAPHENE_POINT_INIT(0, 0), &p)) {
+      if (p.y <= scroll_pos)
+        best = (int)i;
+    }
+  }
+  set_active_chip(self, best);
+}
+
+static void update_spacer_height(MoeMojiWindow *self) {
+  if (!self->bottom_spacer || self->category_widgets->len == 0)
+    return;
+  GtkAdjustment *vadj = gtk_scrolled_window_get_vadjustment(
+      GTK_SCROLLED_WINDOW(self->kaomoji_scroll));
+  int page = (int)gtk_adjustment_get_page_size(vadj);
+  CategoryWidgets *last = g_ptr_array_index(self->category_widgets,
+      self->category_widgets->len - 1);
+  int spacing = gtk_box_get_spacing(self->content_box);
+  int last_h = gtk_widget_get_height(last->header) + spacing +
+               gtk_widget_get_height(last->flow);
+  int spacer_h = page - last_h;
+  if (spacer_h < 0)
+    spacer_h = 0;
+  gtk_widget_set_size_request(self->bottom_spacer, -1, spacer_h);
+}
+
+static void on_scroll_changed(GtkAdjustment *adj, gpointer user_data) {
+  (void)adj;
+  MoeMojiWindow *self = MOEMOJI_WINDOW(user_data);
+  update_chip_from_scroll(self);
+}
+
+static void on_page_size_changed(G_GNUC_UNUSED GtkAdjustment *adj,
+                                  G_GNUC_UNUSED GParamSpec *pspec,
+                                  gpointer user_data) {
+  MoeMojiWindow *self = MOEMOJI_WINDOW(user_data);
+  update_spacer_height(self);
+}
+
+static void on_kaomoji_scroll_map(G_GNUC_UNUSED GtkWidget *widget,
+                                   gpointer user_data) {
+  MoeMojiWindow *self = MOEMOJI_WINDOW(user_data);
+  update_chip_from_scroll(self);
 }
 
 static void on_search_changed(GtkSearchEntry *entry, gpointer user_data) {
   MoeMojiWindow *self = MOEMOJI_WINDOW(user_data);
   const char *query = gtk_editable_get_text(GTK_EDITABLE(entry));
+  if (query == NULL || query[0] == '\0')
+    return;
+  g_autofree char *query_lower = g_utf8_strdown(query, -1);
   for (guint i = 0; i < self->category_widgets->len; i++) {
     CategoryWidgets *cw = g_ptr_array_index(self->category_widgets, i);
-    gboolean visible;
-
-    if (query == NULL || query[0] == '\0') {
-      visible = TRUE;
-    } else {
-      char *name_lower = g_utf8_strdown(cw->name, -1);
-      char *query_lower = g_utf8_strdown(query, -1);
-      visible = (strstr(name_lower, query_lower) != NULL);
-      g_free(name_lower);
-      g_free(query_lower);
+    g_autofree char *name_lower = g_utf8_strdown(cw->name, -1);
+    if (strstr(name_lower, query_lower) != NULL) {
+      scroll_to_category(self, (int)i);
+      return;
     }
-    gtk_widget_set_visible(cw->header, visible);
-    gtk_widget_set_visible(cw->flow, visible);
   }
 }
 
@@ -180,6 +267,8 @@ static void moemoji_window_class_init(MoeMojiWindowClass *klass) {
   gtk_widget_class_bind_template_child(widget_class, MoeMojiWindow,
                                        search_entry);
   gtk_widget_class_bind_template_child(widget_class, MoeMojiWindow, header_bar);
+  gtk_widget_class_bind_template_child(widget_class, MoeMojiWindow,
+                                       kaomoji_scroll);
 }
 
 static void collect_categories(const char *base_dir, GHashTable *seen,
@@ -218,6 +307,7 @@ static void moemoji_window_init(MoeMojiWindow *self) {
   gtk_widget_add_css_class(GTK_WIDGET(self->content_box), "content-area");
   self->category_widgets =
       g_ptr_array_new_with_free_func(category_widgets_free);
+  self->active_chip_index = -1;
   char *kaomoji_dir = find_kaomoji_dir();
   g_autofree char *user_dir =
       g_build_filename(g_get_user_data_dir(), "moemoji", "kaomoji", NULL);
@@ -246,6 +336,8 @@ static void moemoji_window_init(MoeMojiWindow *self) {
   }
   g_ptr_array_free(entries, TRUE);
   g_free(kaomoji_dir);
+  self->bottom_spacer = gtk_box_new(GTK_ORIENTATION_VERTICAL, 0);
+  gtk_box_append(self->content_box, self->bottom_spacer);
   g_signal_connect(self->search_entry, "search-changed",
                    G_CALLBACK(on_search_changed), self);
   if (self->category_widgets->len > 0) {
@@ -260,6 +352,7 @@ static void moemoji_window_init(MoeMojiWindow *self) {
       gtk_widget_add_css_class(btn, "category-chip");
       gtk_widget_add_css_class(btn, "flat");
       g_signal_connect(btn, "clicked", G_CALLBACK(on_chip_clicked), self);
+      cw->chip = btn;
       gtk_flow_box_insert(GTK_FLOW_BOX(flow), btn, -1);
     }
     self->category_bar = GTK_BOX(gtk_box_new(GTK_ORIENTATION_VERTICAL, 0));
@@ -275,5 +368,14 @@ static void moemoji_window_init(MoeMojiWindow *self) {
     gtk_scrolled_window_set_child(GTK_SCROLLED_WINDOW(cat_scroll), flow);
     gtk_box_append(self->category_bar, cat_scroll);
     gtk_box_append(self->outer_box, GTK_WIDGET(self->category_bar));
+
+    GtkAdjustment *vadj = gtk_scrolled_window_get_vadjustment(
+        GTK_SCROLLED_WINDOW(self->kaomoji_scroll));
+    g_signal_connect(vadj, "value-changed", G_CALLBACK(on_scroll_changed),
+                     self);
+    g_signal_connect(vadj, "notify::page-size",
+                     G_CALLBACK(on_page_size_changed), self);
+    g_signal_connect(self->kaomoji_scroll, "map",
+                     G_CALLBACK(on_kaomoji_scroll_map), self);
   }
 }

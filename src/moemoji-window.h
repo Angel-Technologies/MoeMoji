@@ -5,6 +5,7 @@
 typedef struct {
   GtkWidget *header;
   GtkWidget *flow;
+  GtkWidget *chip;
   char *name;
 } CategoryWidgets;
 
@@ -15,7 +16,10 @@ struct _MoeMojiWindow {
   GtkSearchEntry *search_entry;
   GtkWidget *header_bar;
   GtkBox *category_bar;
+  GtkWidget *kaomoji_scroll;
   GPtrArray *category_widgets;
+  GtkWidget *bottom_spacer;
+  int active_chip_index;
 };
 
 G_BEGIN_DECLS
