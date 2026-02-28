@@ -22,9 +22,14 @@
   <project_license>WTFPL</project_license>
   <content_rating type="oars-1.1" />
 
+  <branding>
+    <color type="primary" scheme_preference="light">#64819c</color>
+    <color type="primary" scheme_preference="dark">#34526e</color>
+  </branding>
+
   <screenshots>
     <screenshot type="default">
-      <image>https://gitea.angeltech.jp/Angel-Technologies/MoeMoji/media/branch/main/preview.png</image>
+      <image>https://gitea.angeltech.jp/Angel-Technologies/MoeMoji/raw/commit/62eacf7e0446c95c9e075145f3a6ce42ca39d55f/flathub-preview.png</image>
       <caption>Kaomoji picker</caption>
     </screenshot>
   </screenshots>
