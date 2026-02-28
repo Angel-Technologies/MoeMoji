@@ -3,14 +3,14 @@
   <id>jp.angeltech.MoeMoji</id>
 
   <name>MoeMoji</name>
-  <summary>Moe picker!</summary>
+  <summary>Kaomoji picker! Japanese emoticons library</summary>
 
   <developer id="jp.angeltech">
     <name>angeltech.jp</name>
   </developer>
 
   <description>
-    <p>Kaomoji picker. Browse a library of Japanese emoticons, click to copy, add your own!</p>
+    <p>Kaomoji picker! Browse a library of Japanese emoticons, click to copy, add your own!</p>
   </description>
 
   <metadata_license>CC0-1.0</metadata_license>
