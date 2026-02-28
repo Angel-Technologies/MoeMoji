@@ -13,7 +13,9 @@ A: Couldn't be assed to follow all of their rules and go through review process.
 ## Global shortcut  
 This app uses global shortcut (Meta+Shift+E) for easy access. Press once to show the window, press twice to hide the window.  
 
-If you use KDE like me, you will be requested with global shortcut access on app launch. You can remap this shortcut to anything you want and later access this shortcut from system settings.  
+App starts minimized by default and is hidden to the system tray; by design you are expected to press Meta+Shift+E to invoke the window, copy the emoticon and hide the window with the same shortcut, so it doesn't get in your way.  
+
+If you use KDE like me, you will be requested with global shortcut access on app launch. You can remap this shortcut to anything you want and later you can edit this shortcut from system settings.  
 
 ![image](Screenshot_20260228_021628.png)
 
@@ -31,6 +33,15 @@ All kaomojis are stored in a simple, accessible format:
 ```  
 
 To add your own category/emoticon, simply create a folder and a corresponding .txt file in either `$XDG_DATA_HOME/moemoji/kaomoji/` or `/usr/local/share/moemoji`.  
+
+If you use flatpak, the correct data path is `~/.var/app/net.angeltech.MoeMoji/data/`.  
+So adding your own emoticons would look like this:  
+1. `cd ~/.var/app/net.angeltech.MoeMoji/data/`
+2. `mkdir -p moemoji/kaomoji`
+3. `cd moemoji/kaomoji`
+4. `mkdir your-category`
+5. `echo emoticon > your-category/001.txt`
+6. relaunch app
 
 You can add large ASCII text files or any text you want; the app handles multiline texts and displays a neat little preview.  
   
