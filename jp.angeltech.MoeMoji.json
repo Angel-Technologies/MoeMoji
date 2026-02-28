@@ -16,10 +16,9 @@
               "buildsystem": "meson",
               "sources": [
                   {
-                      "type": "git",
-                      "url": "https://gitea.angeltech.jp/Angel-Technologies/MoeMoji",
-                      "tag": "v0.1.2",
-                      "commit": "3db57eb3fc97ab99056893624d92710f3573e00f"
+                      "type": "archive",
+                      "url": "https://gitea.angeltech.jp/Angel-Technologies/MoeMoji/archive/v0.1.2.tar.gz",
+                      "sha256": "01fd51050f723fc14ba49f8dc09fb5e67336c7e9a54f0c39cb16c69930b26358"
                   }
               ]
           }
