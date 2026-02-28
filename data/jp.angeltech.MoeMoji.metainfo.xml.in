@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<component type="desktop-application">
+  <id>jp.angeltech.MoeMoji</id>
+
+  <name>MoeMoji</name>
+  <summary>Moe picker!</summary>
+
+  <developer id="jp.angeltech">
+    <name>angeltech.jp</name>
+  </developer>
+
+  <description>
+    <p>Kaomoji picker. Browse a library of Japanese emoticons, click to copy, add your own!</p>
+  </description>
+
+  <metadata_license>CC0-1.0</metadata_license>
+
+  <url type="homepage">https://gitea.angeltech.jp/Angel-Technologies/MoeMoji</url>
+  <url type="vcs-browser">https://gitea.angeltech.jp/Angel-Technologies/MoeMoji</url>
+
+  <launchable type="desktop-id">jp.angeltech.MoeMoji.desktop</launchable>
+  <project_license>WTFPL</project_license>
+  <content_rating type="oars-1.1" />
+
+  <screenshots>
+    <screenshot type="default">
+      <image>https://gitea.angeltech.jp/Angel-Technologies/MoeMoji/media/branch/main/preview.png</image>
+    </screenshot>
+  </screenshots>
+
+  <releases>
+    <release version="0.1.0" date="2026-02-28">
+      <description>
+        <p>Initial release.</p>
+      </description>
+    </release>
+  </releases>
+</component>
