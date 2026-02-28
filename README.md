@@ -5,10 +5,7 @@ Kaomoji picker. Browse a library of Japanese emoticons, click to copy, add your 
   
 ## Install  
 1. Download .flatpak file from Releases: https://gitea.angeltech.jp/Angel-Technologies/MoeMoji/releases/tag/konater
-2. Install with `flatpak install ./moemoji.flatpak`  
-
-Q: Why don't you upload to Flathub?  
-A: Couldn't be assed to follow all of their rules and go through review process.  
+2. Install with `flatpak install ./moemoji.flatpak`   
 
 ## Global shortcut  
 This app uses global shortcut (Meta+Shift+E) for easy access. Press once to show the window, press twice to hide the window.  
