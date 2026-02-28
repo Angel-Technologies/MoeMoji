@@ -1,0 +1,27 @@
+{
+      "app-id": "net.angeltech.MoeMoji",
+      "runtime": "org.gnome.Platform",
+      "runtime-version": "49",
+      "sdk": "org.gnome.Sdk",
+      "command": "moemoji",
+      "finish-args": [
+          "--share=ipc",
+          "--socket=fallback-x11",
+          "--socket=wayland",
+          "--talk-name=org.kde.StatusNotifierWatcher",
+          "--talk-name=org.freedesktop.portal.Desktop",
+          "--own-name=org.kde.*"
+      ],
+      "modules": [
+          {
+              "name": "moemoji",
+              "buildsystem": "meson",
+              "sources": [
+                  {
+                      "type": "dir",
+                      "path": "."
+                  }
+              ]
+          }
+      ]
+  }

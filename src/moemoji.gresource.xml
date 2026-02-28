@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<gresources>
+  <gresource prefix="/net/angeltech/MoeMoji">
+    <file>moemoji-window.ui</file>
+    <file>style.css</file>
+    <file>wp.png</file>
+    <file alias="icons/scalable/apps/net.angeltech.MoeMoji.svg">../data/icons/hicolor/scalable/apps/net.angeltech.MoeMoji.svg</file>
+    <file alias="icons/scalable/apps/net.angeltech.MoeMoji-symbolic.svg">../data/icons/hicolor/symbolic/apps/net.angeltech.MoeMoji-symbolic.svg</file>
+  </gresource>
+</gresources>

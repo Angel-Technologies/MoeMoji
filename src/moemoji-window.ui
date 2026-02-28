@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<interface>
+  <requires lib="gtk" version="4.0" />
+  <template class="MoeMojiWindow" parent="GtkApplicationWindow">
+    <property name="default-width">280</property>
+    <property name="default-height">600</property>
+    <property name="resizable">True</property>
+    <property name="title">MoeMoji</property>
+
+    <child type="titlebar">
+      <object class="AdwHeaderBar" id="header_bar">
+        <property name="show-end-title-buttons">True</property>
+      </object>
+    </child>
+
+    <child>
+      <object class="GtkBox" id="outer_box">
+        <property name="orientation">vertical</property>
+        <child>
+          <object class="GtkSearchEntry" id="search_entry">
+            <property name="placeholder-text">Filter by category...</property>
+            <property name="margin-start">6</property>
+            <property name="margin-end">6</property>
+            <property name="margin-top">6</property>
+          </object>
+        </child>
+        <child>
+          <object class="GtkScrolledWindow">
+            <property name="hscrollbar-policy">never</property>
+            <property name="vexpand">True</property>
+            <child>
+              <object class="GtkBox" id="content_box">
+                <property name="orientation">vertical</property>
+                <property name="margin-start">6</property>
+                <property name="margin-end">6</property>
+                <property name="margin-top">6</property>
+                <property name="margin-bottom">6</property>
+                <property name="spacing">4</property>
+              </object>
+            </child>
+          </object>
+        </child>
+      </object>
+    </child>
+  </template>
+</interface>

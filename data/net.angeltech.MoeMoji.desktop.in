@@ -1,0 +1,10 @@
+[Desktop Entry]
+Type=Application
+Name=MoeMoji
+Comment=Japanese emoticon picker!
+Icon=net.angeltech.MoeMoji
+Exec=moemoji
+Terminal=false
+Categories=Accessibility;GTK;Utility;
+Keywords=Kaomoji;Picker;Clipboard;Emoticon;
+StartupNotify=true

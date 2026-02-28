@@ -1,0 +1,55 @@
+.kaomoji-button {
+    font-size: 14px;
+    min-width: 60px;
+    min-height: 36px;
+    padding: 4px 8px;
+}
+
+.kaomoji-wide {
+    min-width: 100%;
+}
+
+.category-header {
+    font-weight: bold;
+    font-size: 14px;
+    padding: 8px 4px 4px 4px;
+}
+
+.kaomoji-preview {
+    font-family: monospace;
+    font-size: 11px;
+}
+
+.category-chips {
+    margin: 4px 6px;
+}
+
+.category-chip {
+    font-size: 11px;
+    padding: 2px 6px;
+    min-height: 24px;
+}
+
+.wallpaper-bg {
+    background-image: linear-gradient(rgba(0, 0, 0, 0.5), rgba(0, 0, 0, 0.5)), url("/net/angeltech/MoeMoji/wp.png");
+    background-size: cover;
+    background-color: transparent;
+}
+
+wallpaper-bg > * {
+    background-color: transparent;
+}
+
+#header_bar {
+    background-color: transparent;
+}
+
+#header_bar > * {
+    background-color: transparent;
+}
+
+.category-bar {
+    background-color: rgba(0, 0, 0, 0.4);
+    border-radius: 14px;
+    padding: 8px;
+}
