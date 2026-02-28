@@ -1,5 +1,5 @@
 {
-      "app-id": "net.angeltech.MoeMoji",
+      "app-id": "jp.angeltech.MoeMoji",
       "runtime": "org.gnome.Platform",
       "runtime-version": "49",
       "sdk": "org.gnome.Sdk",
@@ -9,8 +9,7 @@
           "--socket=fallback-x11",
           "--socket=wayland",
           "--talk-name=org.kde.StatusNotifierWatcher",
-          "--talk-name=org.freedesktop.portal.Desktop",
-          "--own-name=org.kde.*"
+	  "--own-name=org.kde.StatusNotifierItem-2-1"
       ],
       "modules": [
           {

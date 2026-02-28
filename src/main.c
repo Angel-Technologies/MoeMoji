@@ -21,7 +21,7 @@ static void register_with_portal (void) {
         "org.freedesktop.host.portal.Registry",
         "Register",
         g_variant_new ("(s@a{sv})",
-                        "net.angeltech.MoeMoji",
+                        "jp.angeltech.MoeMoji",
                         g_variant_builder_end (&options)),
         NULL,
         G_DBUS_CALL_FLAGS_NONE,
@@ -41,6 +41,6 @@ int main (int argc, char *argv[]) {
     textdomain(GETTEXT_PACKAGE);
     register_with_portal ();
     g_autoptr(MoeMojiApplication) app =
-        moemoji_application_new("net.angeltech.MoeMoji", G_APPLICATION_DEFAULT_FLAGS);
+        moemoji_application_new("jp.angeltech.MoeMoji", G_APPLICATION_DEFAULT_FLAGS);
     return g_application_run(G_APPLICATION(app), argc, argv);
 }

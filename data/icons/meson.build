@@ -1,4 +1,4 @@
-application_id = 'net.angeltech.MoeMoji'
+application_id = 'jp.angeltech.MoeMoji'
 
 scalable_dir = join_paths('hicolor', 'scalable', 'apps')
 install_data(

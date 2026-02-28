@@ -246,7 +246,7 @@ GVariant *sni_get_property(G_GNUC_UNUSED GDBusConnection *connection,
     MoeMojiApplication *self = MOEMOJI_APPLICATION(user_data);
     return g_variant_new_string(self->tray_icon_name
                                     ? self->tray_icon_name
-                                    : "net.angeltech.MoeMoji-tray-dark");
+                                    : "jp.angeltech.MoeMoji-tray-dark");
   }
   if (g_strcmp0(property_name, "ItemIsMenu") == 0)
     return g_variant_new_boolean(FALSE);
@@ -279,8 +279,8 @@ static void on_sni_bus_name_acquired(GDBusConnection *connection,
 static void update_tray_icon(MoeMojiApplication *self) {
   AdwStyleManager *sm = adw_style_manager_get_default();
   gboolean dark = adw_style_manager_get_dark(sm);
-  self->tray_icon_name = dark ? "net.angeltech.MoeMoji-tray-dark"
-                              : "net.angeltech.MoeMoji-tray-light";
+  self->tray_icon_name = dark ? "jp.angeltech.MoeMoji-tray-dark"
+                              : "jp.angeltech.MoeMoji-tray-light";
 
   if (self->dbus_conn && self->sni_registration_id > 0) {
     g_dbus_connection_emit_signal(self->dbus_conn, NULL, "/StatusNotifierItem",
@@ -507,8 +507,8 @@ static void moemoji_application_startup(GApplication *app) {
   MoeMojiApplication *self = MOEMOJI_APPLICATION(app);
   gtk_icon_theme_add_resource_path(
       gtk_icon_theme_get_for_display(gdk_display_get_default()),
-      "/net/angeltech/MoeMoji/icons");
-  gtk_window_set_default_icon_name("net.angeltech.MoeMoji-symbolic");
+      "/jp/angeltech/MoeMoji/icons");
+  gtk_window_set_default_icon_name("jp.angeltech.MoeMoji-symbolic");
   gboolean in_flatpak = g_file_test("/.flatpak-info", G_FILE_TEST_EXISTS);
   if (in_flatpak) {
     self->icon_theme_path = NULL;
@@ -592,7 +592,7 @@ static void moemoji_application_class_init(MoeMojiApplicationClass *klass) {
 }
 
 static void moemoji_application_init(MoeMojiApplication *self) {
-  self->settings = g_settings_new("net.angeltech.MoeMoji");
+  self->settings = g_settings_new("jp.angeltech.MoeMoji");
   self->window_created = FALSE;
   self->shortcuts_bound = FALSE;
   g_autoptr(GSimpleAction) quit_action = g_simple_action_new("quit", NULL);

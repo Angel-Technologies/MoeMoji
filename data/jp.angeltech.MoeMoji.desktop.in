@@ -2,7 +2,7 @@
 Type=Application
 Name=MoeMoji
 Comment=Japanese emoticon picker!
-Icon=net.angeltech.MoeMoji
+Icon=jp.angeltech.MoeMoji
 Exec=moemoji
 Terminal=false
 Categories=Accessibility;GTK;Utility;

@@ -260,7 +260,7 @@ static void on_search_changed(GtkSearchEntry *entry, gpointer user_data) {
 static void moemoji_window_class_init(MoeMojiWindowClass *klass) {
   GtkWidgetClass *widget_class = GTK_WIDGET_CLASS(klass);
   gtk_widget_class_set_template_from_resource(
-      widget_class, "/net/angeltech/MoeMoji/moemoji-window.ui");
+      widget_class, "/jp/angeltech/MoeMoji/moemoji-window.ui");
   gtk_widget_class_bind_template_child(widget_class, MoeMojiWindow, outer_box);
   gtk_widget_class_bind_template_child(widget_class, MoeMojiWindow,
                                        content_box);

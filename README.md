@@ -31,9 +31,9 @@ All kaomojis are stored in a simple, accessible format:
 
 To add your own category/emoticon, simply create a folder and a corresponding .txt file in either `$XDG_DATA_HOME/moemoji/kaomoji/` or `/usr/local/share/moemoji`.  
 
-If you use flatpak, the correct data path is `~/.var/app/net.angeltech.MoeMoji/data/`.  
+If you use flatpak, the correct data path is `~/.var/app/jp.angeltech.MoeMoji/data/`.  
 So adding your own emoticons would look like this:  
-1. `cd ~/.var/app/net.angeltech.MoeMoji/data/`
+1. `cd ~/.var/app/jp.angeltech.MoeMoji/data/`
 2. `mkdir -p moemoji/kaomoji`
 3. `cd moemoji/kaomoji`
 4. `mkdir your-category`
@@ -51,5 +51,5 @@ Run dev build: `GSETTINGS_SCHEMA_DIR=./builddir/data ./builddir/src/moemoji`
   
 # Flatpak packaging  
   
-`flatpak-builder --force-clean --user --install .flatpak-build net.angeltech.MoeMoji.json`  
-`flatpak run net.angeltech.MoeMoji`  
+`flatpak-builder --force-clean --user --install .flatpak-build jp.angeltech.MoeMoji.json`  
+`flatpak run jp.angeltech.MoeMoji`  
