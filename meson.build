@@ -29,6 +29,9 @@ subdir('data')
 subdir('src')
 subdir('tests')
 
+install_data('LICENSE',
+  install_dir: join_paths(get_option('datadir'), 'licenses', 'jp.angeltech.MoeMoji')
+)
 
 gnome.post_install(
   glib_compile_schemas: true,
