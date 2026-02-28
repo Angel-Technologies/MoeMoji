@@ -18,8 +18,8 @@
                   {
                       "type": "git",
                       "url": "https://gitea.angeltech.jp/Angel-Technologies/MoeMoji",
-                      "tag": "v0.1.0",
-                      "commit": "17678d789a3d1fd3f22449a1a06927ebee5d982e"
+                      "tag": "v0.1.1",
+                      "commit": "9106ecc1aee48a985900ff26cccf910cdb02e93e"
                   }
               ]
           }
