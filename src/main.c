@@ -9,7 +9,7 @@ static void register_with_portal (void) {
     GDBusConnection *bus = g_bus_get_sync (G_BUS_TYPE_SESSION, NULL, &error);
     if (bus == NULL) {
         g_warning ("portal register: can't get session bus: %s", error->message);
-        g_error_free (error);
+        g_clear_error (&error);
         return;
     }
     GVariantBuilder options;
@@ -28,7 +28,7 @@ static void register_with_portal (void) {
         -1, NULL, &error);
     if (result == NULL) {
         g_info ("portal register: %s", error->message);
-        g_error_free (error);
+        g_clear_error (&error);
     } else {
         g_variant_unref (result);
     }

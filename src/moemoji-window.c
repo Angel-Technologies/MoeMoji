@@ -222,8 +222,8 @@ static void update_spacer_height(MoeMojiWindow *self) {
   gtk_widget_set_size_request(self->bottom_spacer, -1, spacer_h);
 }
 
-static void on_scroll_changed(GtkAdjustment *adj, gpointer user_data) {
-  (void)adj;
+static void on_scroll_changed(G_GNUC_UNUSED GtkAdjustment *adj,
+                              gpointer user_data) {
   MoeMojiWindow *self = MOEMOJI_WINDOW(user_data);
   update_chip_from_scroll(self);
 }

@@ -93,8 +93,8 @@ static void toggle_window(MoeMojiApplication *self) {
   }
 }
 
-static gboolean on_close_request(GtkWindow *window, gpointer user_data) {
-  (void)user_data;
+static gboolean on_close_request(GtkWindow *window,
+                                  G_GNUC_UNUSED gpointer user_data) {
   gtk_widget_set_visible(GTK_WIDGET(window), FALSE);
   return TRUE;
 }
@@ -297,7 +297,7 @@ static void setup_sni(MoeMojiApplication *self) {
       g_dbus_node_info_new_for_xml(sni_introspection_xml, &error);
   if (sni_node == NULL) {
     g_warning("Failed to parse SNI introspection XML: %s", error->message);
-    g_error_free(error);
+    g_clear_error(&error);
     return;
   }
   self->sni_registration_id = g_dbus_connection_register_object(
@@ -306,14 +306,14 @@ static void setup_sni(MoeMojiApplication *self) {
   g_dbus_node_info_unref(sni_node);
   if (self->sni_registration_id == 0) {
     g_warning("Failed to register SNI object: %s", error->message);
-    g_error_free(error);
+    g_clear_error(&error);
     return;
   }
   GDBusNodeInfo *menu_node =
       g_dbus_node_info_new_for_xml(dbusmenu_introspection_xml, &error);
   if (menu_node == NULL) {
     g_warning("Failed to parse dbusmenu introspection XML: %s", error->message);
-    g_error_free(error);
+    g_clear_error(&error);
     return;
   }
   self->menu_registration_id = g_dbus_connection_register_object(
@@ -322,7 +322,7 @@ static void setup_sni(MoeMojiApplication *self) {
   g_dbus_node_info_unref(menu_node);
   if (self->menu_registration_id == 0) {
     g_warning("dbusmenu register: %s", error->message);
-    g_error_free(error);
+    g_clear_error(&error);
   }
   const gchar *unique_name = g_dbus_connection_get_unique_name(self->dbus_conn);
   g_dbus_connection_call(
@@ -332,11 +332,10 @@ static void setup_sni(MoeMojiApplication *self) {
       NULL, NULL, NULL);
 }
 
-static void on_shortcuts_activated(GDBusProxy *proxy, const gchar *sender_name,
+static void on_shortcuts_activated(G_GNUC_UNUSED GDBusProxy *proxy,
+                                   G_GNUC_UNUSED const gchar *sender_name,
                                    const gchar *signal_name,
                                    GVariant *parameters, gpointer user_data) {
-  (void)proxy;
-  (void)sender_name;
   if (g_strcmp0(signal_name, "Activated") != 0)
     return;
   MoeMojiApplication *self = MOEMOJI_APPLICATION(user_data);
@@ -481,7 +480,7 @@ static void setup_global_shortcuts(MoeMojiApplication *self) {
       "org.freedesktop.portal.GlobalShortcuts", NULL, &error);
   if (self->shortcuts_proxy == NULL) {
     g_warning("GlobalShortcuts: Failed to create proxy: %s", error->message);
-    g_error_free(error);
+    g_clear_error(&error);
     return;
   }
   g_timeout_add(500, (GSourceFunc)begin_create_session, self);
