@@ -266,16 +266,6 @@ static const GDBusInterfaceVTable sni_vtable = {
     .set_property = NULL,
 };
 
-static void on_sni_bus_name_acquired(GDBusConnection *connection,
-                                     const gchar *name,
-                                     G_GNUC_UNUSED gpointer user_data) {
-  g_dbus_connection_call(
-      connection, "org.kde.StatusNotifierWatcher", "/StatusNotifierWatcher",
-      "org.kde.StatusNotifierWatcher", "RegisterStatusNotifierItem",
-      g_variant_new("(s)", name), NULL, G_DBUS_CALL_FLAGS_NONE, -1, NULL, NULL,
-      NULL);
-}
-
 static void update_tray_icon(MoeMojiApplication *self) {
   AdwStyleManager *sm = adw_style_manager_get_default();
   gboolean dark = adw_style_manager_get_dark(sm);
@@ -334,11 +324,12 @@ static void setup_sni(MoeMojiApplication *self) {
     g_warning("dbusmenu register: %s", error->message);
     g_error_free(error);
   }
-  g_autofree gchar *bus_name =
-      g_strdup_printf("org.kde.StatusNotifierItem-%d-1", getpid());
-  self->sni_bus_name_id = g_bus_own_name_on_connection(
-      self->dbus_conn, bus_name, G_BUS_NAME_OWNER_FLAGS_NONE,
-      on_sni_bus_name_acquired, NULL, NULL, NULL);
+  const gchar *unique_name = g_dbus_connection_get_unique_name(self->dbus_conn);
+  g_dbus_connection_call(
+      self->dbus_conn, "org.kde.StatusNotifierWatcher", "/StatusNotifierWatcher",
+      "org.kde.StatusNotifierWatcher", "RegisterStatusNotifierItem",
+      g_variant_new("(s)", unique_name), NULL, G_DBUS_CALL_FLAGS_NONE, -1,
+      NULL, NULL, NULL);
 }
 
 static void on_shortcuts_activated(GDBusProxy *proxy, const gchar *sender_name,
@@ -560,10 +551,6 @@ static void moemoji_application_dispose(GObject *object) {
     g_dbus_connection_unregister_object(self->dbus_conn,
                                         self->menu_registration_id);
     self->menu_registration_id = 0;
-  }
-  if (self->sni_bus_name_id > 0) {
-    g_bus_unown_name(self->sni_bus_name_id);
-    self->sni_bus_name_id = 0;
   }
   g_clear_object(&self->shortcuts_proxy);
   g_clear_pointer(&self->shortcuts_session_path, g_free);

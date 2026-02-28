@@ -11,7 +11,6 @@ struct _MoeMojiApplication {
   gboolean shortcuts_bound;
   GDBusConnection *dbus_conn;
   guint sni_registration_id;
-  guint sni_bus_name_id;
   guint menu_registration_id;
   gchar *icon_theme_path;
   const gchar *tray_icon_name;
