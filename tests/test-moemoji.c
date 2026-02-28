@@ -263,7 +263,7 @@ main (int argc, char *argv[])
 
     run_find_kaomoji_bogus ();
 
-    gtk_init ();
+    gboolean have_display = gtk_init_check ();
 
     g_test_add_func ("/display-name/underscores",       test_display_name_underscores);
     g_test_add_func ("/display-name/no-underscores",    test_display_name_no_underscores);
@@ -282,11 +282,13 @@ main (int argc, char *argv[])
     g_test_add_func ("/dbusmenu/text-direction",        test_dbusmenu_text_direction);
     g_test_add_func ("/dbusmenu/unknown",               test_dbusmenu_unknown);
     g_test_add_func ("/category-widgets/chip-init",     test_category_widgets_chip_init);
-    g_test_add_func ("/window/chip-setup",               test_window_chip_setup);
-    g_test_add_func ("/window/chip-labels-match",        test_window_chip_labels_match);
-    g_test_add_func ("/window/initial-active-chip",      test_window_initial_active_chip);
-    g_test_add_func ("/window/all-categories-visible",   test_window_all_categories_visible);
-    g_test_add_func ("/window/bottom-spacer",            test_window_bottom_spacer);
+    if (have_display) {
+        g_test_add_func ("/window/chip-setup",               test_window_chip_setup);
+        g_test_add_func ("/window/chip-labels-match",        test_window_chip_labels_match);
+        g_test_add_func ("/window/initial-active-chip",      test_window_initial_active_chip);
+        g_test_add_func ("/window/all-categories-visible",   test_window_all_categories_visible);
+        g_test_add_func ("/window/bottom-spacer",            test_window_bottom_spacer);
+    }
 
     return g_test_run ();
 }
