@@ -60,3 +60,7 @@ Run dev build: `GSETTINGS_SCHEMA_DIR=./builddir/data ./builddir/src/moemoji`
 `flatpak build-export export build`  
 `flatpak build-bundle export moemoji.flatpak jp.angeltech.MoeMoji.json`  
 
+## Local manifest  
+
+If you want to test local changes to the source code, you should build with `dev.jp.angeltech.MoeMoji.json` manifest instead, as main manifest pulls a tarball from the remote source.  
+
