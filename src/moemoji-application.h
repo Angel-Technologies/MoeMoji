@@ -16,6 +16,7 @@ struct _MoeMojiApplication {
   const gchar *tray_icon_name;
   GDBusProxy *shortcuts_proxy;
   gchar *shortcuts_session_path;
+  gboolean has_tray;
 };
 
 G_BEGIN_DECLS

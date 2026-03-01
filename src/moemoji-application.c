@@ -93,10 +93,13 @@ static void toggle_window(MoeMojiApplication *self) {
   }
 }
 
-static gboolean on_close_request(GtkWindow *window,
-                                  G_GNUC_UNUSED gpointer user_data) {
-  gtk_widget_set_visible(GTK_WIDGET(window), FALSE);
-  return TRUE;
+static gboolean on_close_request(GtkWindow *window, gpointer user_data) {
+  MoeMojiApplication *self = MOEMOJI_APPLICATION(user_data);
+  if (self->has_tray) {
+    gtk_widget_set_visible(GTK_WIDGET(window), FALSE);
+    return TRUE;
+  }
+  return FALSE;
 }
 
 static void dbusmenu_method_call(G_GNUC_UNUSED GDBusConnection *connection,
@@ -291,8 +294,33 @@ static void setup_sni(MoeMojiApplication *self) {
   if (self->dbus_conn == NULL) {
     g_warning("session bus: %s", error->message);
     g_clear_error(&error);
+    self->has_tray = FALSE;
     return;
   }
+
+  GVariant *result = g_dbus_connection_call_sync(
+      self->dbus_conn, "org.freedesktop.DBus", "/org/freedesktop/DBus",
+      "org.freedesktop.DBus", "NameHasOwner",
+      g_variant_new("(s)", "org.kde.StatusNotifierWatcher"), G_VARIANT_TYPE("(b)"),
+      G_DBUS_CALL_FLAGS_NONE, -1, NULL, &error);
+  if (result == NULL) {
+    g_warning("NameHasOwner check failed: %s", error->message);
+    g_clear_error(&error);
+    self->has_tray = FALSE;
+    return;
+  }
+
+  gboolean watcher_exists = FALSE;
+  g_variant_get(result, "(b)", &watcher_exists);
+  g_variant_unref(result);
+
+  if (!watcher_exists) {
+    g_info("No StatusNotifierWatcher found, skipping tray setup");
+    self->has_tray = FALSE;
+    return;
+  }
+
+  self->has_tray = TRUE;
   GDBusNodeInfo *sni_node =
       g_dbus_node_info_new_for_xml(sni_introspection_xml, &error);
   if (sni_node == NULL) {
@@ -532,7 +560,7 @@ static void moemoji_application_activate(GApplication *app) {
     self->window = g_object_new(MOEMOJI_TYPE_WINDOW, "application",
                                 GTK_APPLICATION(self), NULL);
     g_signal_connect(self->window, "close-request",
-                     G_CALLBACK(on_close_request), NULL);
+                     G_CALLBACK(on_close_request), self);
     self->window_created = TRUE;
   } else {
     toggle_window(self);
