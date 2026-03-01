@@ -53,3 +53,10 @@ Run dev build: `GSETTINGS_SCHEMA_DIR=./builddir/data ./builddir/src/moemoji`
   
 `flatpak-builder --force-clean --user --install .flatpak-build jp.angeltech.MoeMoji.json`  
 `flatpak run jp.angeltech.MoeMoji`  
+
+# Creating a distributable package
+
+`flatpak-builder build/ jp.angeltech.MoeMoji.json`  
+`flatpak build-export export build`  
+`flatpak build-bundle export moemoji.flatpak jp.angeltech.MoeMoji.json`  
+
