@@ -526,7 +526,7 @@ static void moemoji_application_startup(GApplication *app) {
   gtk_icon_theme_add_resource_path(
       gtk_icon_theme_get_for_display(gdk_display_get_default()),
       "/jp/angeltech/MoeMoji/icons");
-  gtk_window_set_default_icon_name("jp.angeltech.MoeMoji-symbolic");
+  gtk_window_set_default_icon_name("jp.angeltech.MoeMoji");
   gboolean in_flatpak = g_file_test("/.flatpak-info", G_FILE_TEST_EXISTS);
   if (in_flatpak) {
     self->icon_theme_path = NULL;

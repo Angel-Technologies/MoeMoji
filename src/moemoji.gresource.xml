@@ -4,7 +4,7 @@
     <file>moemoji-window.ui</file>
     <file>style.css</file>
     <file>wp.png</file>
-    <file alias="icons/scalable/apps/jp.angeltech.MoeMoji.svg">../data/icons/hicolor/scalable/apps/jp.angeltech.MoeMoji.svg</file>
+    <file alias="icons/scalable/apps/jp.angeltech.MoeMoji.png">../data/icons/hicolor/scalable/apps/jp.angeltech.MoeMoji.png</file>
     <file alias="icons/scalable/apps/jp.angeltech.MoeMoji-symbolic.svg">../data/icons/hicolor/symbolic/apps/jp.angeltech.MoeMoji-symbolic.svg</file>
   </gresource>
 </gresources>
