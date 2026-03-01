@@ -4,7 +4,7 @@ Kaomoji picker. Browse a library of Japanese emoticons, click to copy, add your 
 ![preview](preview.png)  
   
 ## Install  
-1. Download .flatpak file from Releases: https://gitea.angeltech.jp/Angel-Technologies/MoeMoji/releases/tag/konater
+1. Download .flatpak file from Releases: https://gitea.angeltech.jp/Angel-Technologies/MoeMoji/releases/
 2. Install with `flatpak install ./moemoji.flatpak`   
 
 ## Global shortcut  
