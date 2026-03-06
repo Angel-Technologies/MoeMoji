@@ -27,7 +27,7 @@ static void register_with_portal (void) {
         G_DBUS_CALL_FLAGS_NONE,
         -1, NULL, &error);
     if (result == NULL) {
-        g_info ("portal register: %s", error->message);
+        g_warning ("portal register: %s", error->message);
         g_clear_error (&error);
     } else {
         g_variant_unref (result);

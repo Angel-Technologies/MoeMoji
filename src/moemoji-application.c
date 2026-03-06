@@ -301,8 +301,8 @@ static void setup_sni(MoeMojiApplication *self) {
   GVariant *result = g_dbus_connection_call_sync(
       self->dbus_conn, "org.freedesktop.DBus", "/org/freedesktop/DBus",
       "org.freedesktop.DBus", "NameHasOwner",
-      g_variant_new("(s)", "org.kde.StatusNotifierWatcher"), G_VARIANT_TYPE("(b)"),
-      G_DBUS_CALL_FLAGS_NONE, -1, NULL, &error);
+      g_variant_new("(s)", "org.kde.StatusNotifierWatcher"),
+      G_VARIANT_TYPE("(b)"), G_DBUS_CALL_FLAGS_NONE, -1, NULL, &error);
   if (result == NULL) {
     g_warning("NameHasOwner check failed: %s", error->message);
     g_clear_error(&error);
@@ -354,10 +354,10 @@ static void setup_sni(MoeMojiApplication *self) {
   }
   const gchar *unique_name = g_dbus_connection_get_unique_name(self->dbus_conn);
   g_dbus_connection_call(
-      self->dbus_conn, "org.kde.StatusNotifierWatcher", "/StatusNotifierWatcher",
-      "org.kde.StatusNotifierWatcher", "RegisterStatusNotifierItem",
-      g_variant_new("(s)", unique_name), NULL, G_DBUS_CALL_FLAGS_NONE, -1,
-      NULL, NULL, NULL);
+      self->dbus_conn, "org.kde.StatusNotifierWatcher",
+      "/StatusNotifierWatcher", "org.kde.StatusNotifierWatcher",
+      "RegisterStatusNotifierItem", g_variant_new("(s)", unique_name), NULL,
+      G_DBUS_CALL_FLAGS_NONE, -1, NULL, NULL, NULL);
 }
 
 static void on_shortcuts_activated(G_GNUC_UNUSED GDBusProxy *proxy,
@@ -593,8 +593,8 @@ static void moemoji_application_show_about(G_GNUC_UNUSED GSimpleAction *action,
   GtkWindow *window = NULL;
   g_return_if_fail(MOEMOJI_IS_APPLICATION(self));
   window = gtk_application_get_active_window(GTK_APPLICATION(self));
-  gtk_show_about_dialog(window, "program-name", "MoeMoji", "version", "0.1.0",
-                        NULL);
+  gtk_show_about_dialog(window, "program-name", "MoeMoji", "version",
+                        PACKAGE_VERSION, NULL);
 }
 
 static void moemoji_application_class_init(MoeMojiApplicationClass *klass) {

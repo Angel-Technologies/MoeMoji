@@ -20,6 +20,16 @@ struct _MoeMojiWindow {
   GPtrArray *category_widgets;
   GtkWidget *bottom_spacer;
   int active_chip_index;
+  GtkStack *view_stack;
+  GtkWidget *add_button;
+  GtkWidget *back_button;
+  GtkWidget *menu_button;
+  GtkEntry *category_name_entry;
+  GtkWidget *entry_text_view;
+  GtkWidget *category_save_button;
+  char *selected_category_dir;
+  gulong scroll_handler_id;
+  gulong page_size_handler_id;
 };
 
 G_BEGIN_DECLS
