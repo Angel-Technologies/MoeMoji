@@ -11,6 +11,7 @@ typedef struct {
 
 struct _MoeMojiWindow {
   GtkApplicationWindow parent_instance;
+  GtkBox *wrapper_box;
   GtkBox *outer_box;
   GtkBox *content_box;
   GtkSearchEntry *search_entry;
@@ -22,8 +23,10 @@ struct _MoeMojiWindow {
   int active_chip_index;
   GtkStack *view_stack;
   GtkWidget *add_button;
+  GtkWidget *sort_button;
   GtkWidget *back_button;
   GtkWidget *menu_button;
+  GSettings *settings;
   GtkEntry *category_name_entry;
   GtkWidget *entry_text_view;
   GtkWidget *category_save_button;

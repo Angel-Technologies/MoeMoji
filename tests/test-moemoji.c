@@ -6,13 +6,13 @@
 
 static void test_display_name_underscores(void) {
   char *name = make_display_name("happy_faces");
-  g_assert_cmpstr(name, ==, "Happy faces");
+  g_assert_cmpstr(name, ==, "happy faces");
   g_free(name);
 }
 
 static void test_display_name_no_underscores(void) {
   char *name = make_display_name("animals");
-  g_assert_cmpstr(name, ==, "Animals");
+  g_assert_cmpstr(name, ==, "animals");
   g_free(name);
 }
 
@@ -24,7 +24,7 @@ static void test_display_name_already_upper(void) {
 
 static void test_display_name_single_char(void) {
   char *name = make_display_name("x");
-  g_assert_cmpstr(name, ==, "X");
+  g_assert_cmpstr(name, ==, "x");
   g_free(name);
 }
 
@@ -141,6 +141,17 @@ G_GNUC_INTERNAL GResource *moemoji_get_resource(void);
 static GResource *test_res = NULL;
 static GtkWidget *test_win = NULL;
 static MoeMojiWindow *test_self = NULL;
+
+static void cleanup_user_kaomoji_dir(void) {
+  char *kaomoji_parent =
+      g_build_filename(g_get_user_data_dir(), "moemoji", "kaomoji", NULL);
+  g_rmdir(kaomoji_parent);
+  g_free(kaomoji_parent);
+  char *moemoji_parent =
+      g_build_filename(g_get_user_data_dir(), "moemoji", NULL);
+  g_rmdir(moemoji_parent);
+  g_free(moemoji_parent);
+}
 
 static void window_test_setup(void) {
   if (!test_res) {
@@ -277,14 +288,7 @@ static void test_add_category_creates_dir(void) {
   g_assert_true(found);
   window_test_teardown();
   g_rmdir(cat_dir);
-  char *kaomoji_parent =
-      g_build_filename(g_get_user_data_dir(), "moemoji", "kaomoji", NULL);
-  g_rmdir(kaomoji_parent);
-  g_free(kaomoji_parent);
-  char *moemoji_parent =
-      g_build_filename(g_get_user_data_dir(), "moemoji", NULL);
-  g_rmdir(moemoji_parent);
-  g_free(moemoji_parent);
+  cleanup_user_kaomoji_dir();
   g_free(cat_dir);
 }
 
@@ -334,14 +338,7 @@ static void test_add_entry_creates_file(void) {
   g_unlink(fpath);
   g_unlink(fpath2);
   g_rmdir(cat_dir);
-  char *kaomoji_parent =
-      g_build_filename(g_get_user_data_dir(), "moemoji", "kaomoji", NULL);
-  g_rmdir(kaomoji_parent);
-  g_free(kaomoji_parent);
-  char *moemoji_parent =
-      g_build_filename(g_get_user_data_dir(), "moemoji", NULL);
-  g_rmdir(moemoji_parent);
-  g_free(moemoji_parent);
+  cleanup_user_kaomoji_dir();
   g_free(cat_dir);
   g_free(fpath);
   g_free(fpath2);
@@ -400,14 +397,7 @@ static void test_export_creates_archive(void) {
   g_free(fpath);
   g_rmdir(cat_dir);
   g_free(cat_dir);
-  char *kaomoji_parent =
-      g_build_filename(g_get_user_data_dir(), "moemoji", "kaomoji", NULL);
-  g_rmdir(kaomoji_parent);
-  g_free(kaomoji_parent);
-  char *moemoji_parent =
-      g_build_filename(g_get_user_data_dir(), "moemoji", NULL);
-  g_rmdir(moemoji_parent);
-  g_free(moemoji_parent);
+  cleanup_user_kaomoji_dir();
   g_free(user_dir);
 }
 
@@ -466,11 +456,7 @@ static void test_import_extracts_and_loads(void) {
   char *imported_cat = g_build_filename(user_dir, "ZZZ_import_test", NULL);
   g_rmdir(imported_cat);
   g_free(imported_cat);
-  g_rmdir(user_dir);
-  char *moemoji_parent =
-      g_build_filename(g_get_user_data_dir(), "moemoji", NULL);
-  g_rmdir(moemoji_parent);
-  g_free(moemoji_parent);
+  cleanup_user_kaomoji_dir();
   g_free(user_dir);
 
   g_unlink(fpath);
@@ -502,11 +488,14 @@ static void test_category_name_validation(void) {
                         "my-cool_category");
   g_assert_true(gtk_widget_get_sensitive(test_self->category_save_button));
   gtk_editable_set_text(GTK_EDITABLE(test_self->category_name_entry),
-                        "bad/name");
-  g_assert_false(gtk_widget_get_sensitive(test_self->category_save_button));
+                        "Кириллица");
+  g_assert_true(gtk_widget_get_sensitive(test_self->category_save_button));
   gtk_editable_set_text(GTK_EDITABLE(test_self->category_name_entry),
-                        "bad.name");
-  g_assert_false(gtk_widget_get_sensitive(test_self->category_save_button));
+                        "日本語カテゴリ");
+  g_assert_true(gtk_widget_get_sensitive(test_self->category_save_button));
+  gtk_editable_set_text(GTK_EDITABLE(test_self->category_name_entry),
+                        "symbols & stuff!!");
+  g_assert_true(gtk_widget_get_sensitive(test_self->category_save_button));
   window_test_teardown();
 }
 

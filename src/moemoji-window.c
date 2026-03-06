@@ -22,9 +22,20 @@ char *make_display_name(const char *dirname) {
     if (*p == '_')
       *p = ' ';
   }
-  if (name[0])
-    name[0] = g_ascii_toupper(name[0]);
   return name;
+}
+
+static char *get_category_display_name(const char *cat_path) {
+  g_autofree char *name_file = g_build_filename(cat_path, ".name", NULL);
+  char *contents = NULL;
+  if (g_file_get_contents(name_file, &contents, NULL, NULL)) {
+    g_strchomp(contents);
+    if (contents[0] != '\0')
+      return contents;
+    g_free(contents);
+  }
+  g_autofree char *basename = g_path_get_basename(cat_path);
+  return make_display_name(basename);
 }
 
 char *find_kaomoji_dir(void) {
@@ -83,9 +94,10 @@ static void add_kaomoji_button(GtkFlowBox *flow, const char *text) {
     label_text = first_line;
   }
   GtkWidget *button = gtk_button_new_with_label(label_text);
+  gtk_widget_set_halign(button, GTK_ALIGN_FILL);
   GtkWidget *label = gtk_button_get_child(GTK_BUTTON(button));
   gtk_label_set_ellipsize(GTK_LABEL(label), PANGO_ELLIPSIZE_END);
-  gtk_label_set_max_width_chars(GTK_LABEL(label), 20);
+  gtk_label_set_xalign(GTK_LABEL(label), 0.0);
   gtk_widget_add_css_class(button, "kaomoji-button");
   gtk_widget_add_css_class(button, "flat");
   if (multiline || g_utf8_strlen(label_text, -1) > 20)
@@ -150,15 +162,15 @@ static void load_category(MoeMojiWindow *self, const char *kaomoji_dir,
     g_free(cat_path);
     return;
   }
-  char *display_name = make_display_name(dirname);
+  char *display_name = get_category_display_name(cat_path);
   GtkWidget *header = gtk_label_new(display_name);
   gtk_widget_add_css_class(header, "category-header");
   gtk_label_set_xalign(GTK_LABEL(header), 0.0);
   gtk_box_append(self->content_box, header);
   GtkWidget *flow = gtk_flow_box_new();
-  gtk_flow_box_set_homogeneous(GTK_FLOW_BOX(flow), FALSE);
+  gtk_flow_box_set_homogeneous(GTK_FLOW_BOX(flow), TRUE);
   gtk_flow_box_set_min_children_per_line(GTK_FLOW_BOX(flow), 2);
-  gtk_flow_box_set_max_children_per_line(GTK_FLOW_BOX(flow), 10);
+  gtk_flow_box_set_max_children_per_line(GTK_FLOW_BOX(flow), 4);
   gtk_flow_box_set_selection_mode(GTK_FLOW_BOX(flow), GTK_SELECTION_NONE);
   GPtrArray *files = g_ptr_array_new_with_free_func(g_free);
   const char *filename;
@@ -319,12 +331,58 @@ static void collect_categories(const char *base_dir, GHashTable *seen,
   g_dir_close(top);
 }
 
+static gint64 get_dir_time(const char *base, const char *name,
+                           const char *attr) {
+  g_autofree char *path = g_build_filename(base, name, NULL);
+  GFile *file = g_file_new_for_path(path);
+  g_autofree char *attrs =
+      g_strconcat(attr, ",", G_FILE_ATTRIBUTE_TIME_MODIFIED, NULL);
+  GFileInfo *info =
+      g_file_query_info(file, attrs, G_FILE_QUERY_INFO_NONE, NULL, NULL);
+  gint64 t = 0;
+  if (info) {
+    if (g_file_info_has_attribute(info, attr))
+      t = g_file_info_get_attribute_uint64(info, attr);
+    else
+      t = g_file_info_get_attribute_uint64(info,
+                                           G_FILE_ATTRIBUTE_TIME_MODIFIED);
+    g_object_unref(info);
+  }
+  g_object_unref(file);
+  return t;
+}
+
+static const char *current_sort_order = "alpha-asc";
+
 static gint compare_entries(gconstpointer a, gconstpointer b) {
   char **ea = *(char ***)a;
   char **eb = *(char ***)b;
-  g_autofree char *ka = g_utf8_collate_key_for_filename(ea[1], -1);
-  g_autofree char *kb = g_utf8_collate_key_for_filename(eb[1], -1);
-  return strcmp(ka, kb);
+  const char *order = current_sort_order;
+  gboolean desc = g_str_has_suffix(order, "-desc");
+
+  if (g_str_has_prefix(order, "alpha")) {
+    g_autofree char *pa = g_build_filename(ea[0], ea[1], NULL);
+    g_autofree char *pb = g_build_filename(eb[0], eb[1], NULL);
+    g_autofree char *da = get_category_display_name(pa);
+    g_autofree char *db = get_category_display_name(pb);
+    g_autofree char *ka = g_utf8_collate_key_for_filename(da, -1);
+    g_autofree char *kb = g_utf8_collate_key_for_filename(db, -1);
+    gint r = strcmp(ka, kb);
+    return desc ? -r : r;
+  }
+
+  const char *attr = g_str_has_prefix(order, "created")
+                         ? G_FILE_ATTRIBUTE_TIME_CREATED
+                         : G_FILE_ATTRIBUTE_TIME_MODIFIED;
+  gint64 ta = get_dir_time(ea[0], ea[1], attr);
+  gint64 tb = get_dir_time(eb[0], eb[1], attr);
+  gint r = (ta > tb) - (ta < tb);
+  if (r == 0) {
+    g_autofree char *ka = g_utf8_collate_key_for_filename(ea[1], -1);
+    g_autofree char *kb = g_utf8_collate_key_for_filename(eb[1], -1);
+    r = strcmp(ka, kb);
+  }
+  return desc ? -r : r;
 }
 
 static GPtrArray *collect_all_categories(void) {
@@ -362,6 +420,7 @@ static void navigate_to(MoeMojiWindow *self, const char *page,
   gtk_stack_set_visible_child_name(self->view_stack, page);
   gboolean is_main = (g_strcmp0(page, "main") == 0);
   gtk_widget_set_visible(self->add_button, is_main);
+  gtk_widget_set_visible(self->sort_button, is_main);
   gtk_widget_set_visible(self->back_button, !is_main);
   gtk_widget_set_visible(self->menu_button, is_main);
 }
@@ -392,65 +451,25 @@ static void on_new_entry_clicked(G_GNUC_UNUSED GtkButton *button,
 static gboolean is_valid_category_name(const char *text) {
   if (!text || text[0] == '\0')
     return FALSE;
-  gboolean has_non_space = FALSE;
-  for (const char *p = text; *p;) {
-    gunichar ch = g_utf8_get_char(p);
-    if (g_unichar_isalpha(ch) || g_unichar_isdigit(ch) || ch == '_' ||
-        ch == '-') {
-      has_non_space = TRUE;
-    } else if (ch == ' ') {
-      /* space is allowed */
-    } else {
-      return FALSE;
-    }
-    p = g_utf8_next_char(p);
-  }
-  return has_non_space;
-}
-
-static char *normalize_category_name(const char *name) {
-  char *n = g_ascii_strdown(name, -1);
-  for (char *p = n; *p; p++) {
-    if (*p == ' ')
-      *p = '_';
-  }
-  return n;
-}
-
-static gboolean dir_has_category(const char *base, const char *norm_name) {
-  GDir *dir = g_dir_open(base, 0, NULL);
-  if (!dir)
-    return FALSE;
-  const char *name;
-  while ((name = g_dir_read_name(dir)) != NULL) {
-    g_autofree char *norm = normalize_category_name(name);
-    if (strcmp(norm, norm_name) == 0) {
-      g_autofree char *full = g_build_filename(base, name, NULL);
-      if (g_file_test(full, G_FILE_TEST_IS_DIR)) {
-        g_dir_close(dir);
-        return TRUE;
-      }
-    }
-  }
-  g_dir_close(dir);
-  return FALSE;
-}
-
-static gboolean category_exists(const char *text) {
   g_autofree char *stripped = g_strstrip(g_strdup(text));
-  g_autofree char *norm = normalize_category_name(stripped);
-  g_autofree char *user_base =
-      g_build_filename(g_get_user_data_dir(), "moemoji", "kaomoji", NULL);
-  if (dir_has_category(user_base, norm))
-    return TRUE;
-  char *bundled = find_kaomoji_dir();
-  if (bundled) {
-    gboolean exists = dir_has_category(bundled, norm);
-    g_free(bundled);
-    if (exists)
-      return TRUE;
+  return stripped[0] != '\0';
+}
+
+static gboolean category_name_taken(const char *name) {
+  g_autofree char *stripped = g_strstrip(g_strdup(name));
+  GPtrArray *entries = collect_all_categories();
+  gboolean found = FALSE;
+  for (guint i = 0; i < entries->len; i++) {
+    char **pair = g_ptr_array_index(entries, i);
+    g_autofree char *cat_path = g_build_filename(pair[0], pair[1], NULL);
+    g_autofree char *display = get_category_display_name(cat_path);
+    if (g_utf8_collate(display, stripped) == 0) {
+      found = TRUE;
+      break;
+    }
   }
-  return FALSE;
+  free_category_entries(entries);
+  return found;
 }
 
 static void on_category_name_changed(G_GNUC_UNUSED GtkEditable *editable,
@@ -460,7 +479,7 @@ static void on_category_name_changed(G_GNUC_UNUSED GtkEditable *editable,
       gtk_editable_get_text(GTK_EDITABLE(self->category_name_entry));
   gtk_widget_set_sensitive(self->category_save_button,
                            is_valid_category_name(text) &&
-                               !category_exists(text));
+                               !category_name_taken(text));
 }
 
 static void on_category_save_clicked(G_GNUC_UNUSED GtkButton *button,
@@ -468,17 +487,15 @@ static void on_category_save_clicked(G_GNUC_UNUSED GtkButton *button,
   MoeMojiWindow *self = MOEMOJI_WINDOW(user_data);
   const char *text =
       gtk_editable_get_text(GTK_EDITABLE(self->category_name_entry));
-  if (!is_valid_category_name(text) || category_exists(text))
+  if (!is_valid_category_name(text) || category_name_taken(text))
     return;
-  g_autofree char *dir_name = g_strdup(text);
-  g_strstrip(dir_name);
-  for (char *p = dir_name; *p; p++) {
-    if (*p == ' ')
-      *p = '_';
-  }
-  g_autofree char *cat_path = g_build_filename(g_get_user_data_dir(), "moemoji",
-                                               "kaomoji", dir_name, NULL);
+  g_autofree char *stripped = g_strstrip(g_strdup(text));
+  g_autofree char *uuid = g_uuid_string_random();
+  g_autofree char *cat_path =
+      g_build_filename(g_get_user_data_dir(), "moemoji", "kaomoji", uuid, NULL);
   g_mkdir_with_parents(cat_path, 0755);
+  g_autofree char *name_file = g_build_filename(cat_path, ".name", NULL);
+  g_file_set_contents(name_file, stripped, -1, NULL);
 
   reload_categories(self);
   navigate_to(self, "main", FALSE);
@@ -505,8 +522,8 @@ static void build_pick_category_page(MoeMojiWindow *self,
 
   for (guint i = 0; i < entries->len; i++) {
     char **pair = g_ptr_array_index(entries, i);
-    g_autofree char *display = make_display_name(pair[1]);
     g_autofree char *full_path = g_build_filename(pair[0], pair[1], NULL);
+    g_autofree char *display = get_category_display_name(full_path);
     GtkWidget *btn = gtk_button_new_with_label(display);
     gtk_widget_add_css_class(btn, "category-chip");
     gtk_widget_add_css_class(btn, "flat");
@@ -676,7 +693,7 @@ static GtkWidget *build_add_category_page(MoeMojiWindow *self) {
   return box;
 }
 
-static GtkWidget *build_pick_category_page_widget(MoeMojiWindow *self) {
+static GtkWidget *build_pick_category_page_widget(void) {
   GtkWidget *wrapper = gtk_box_new(GTK_ORIENTATION_VERTICAL, 0);
   gtk_widget_set_vexpand(wrapper, TRUE);
   gtk_widget_set_halign(wrapper, GTK_ALIGN_CENTER);
@@ -711,7 +728,6 @@ static GtkWidget *build_pick_category_page_widget(MoeMojiWindow *self) {
   gtk_box_append(GTK_BOX(wrapper), clamp);
   g_object_set_data(G_OBJECT(wrapper), "pick-flow", pick_flow);
 
-  (void)self;
   return wrapper;
 }
 
@@ -847,6 +863,51 @@ static void on_manage_delete_category_response(AdwAlertDialog *dialog,
   }
 }
 
+static void on_rename_category_response(AdwAlertDialog *dialog,
+                                        GAsyncResult *res, gpointer user_data) {
+  MoeMojiWindow *self = MOEMOJI_WINDOW(user_data);
+  const char *response = adw_alert_dialog_choose_finish(dialog, res);
+  if (g_strcmp0(response, "rename") != 0)
+    return;
+  const char *cat_path = g_object_get_data(G_OBJECT(dialog), "cat-path");
+  GtkEditable *entry =
+      GTK_EDITABLE(g_object_get_data(G_OBJECT(dialog), "name-entry"));
+  const char *raw = gtk_editable_get_text(entry);
+  g_autofree char *stripped = g_strstrip(g_strdup(raw));
+  if (stripped[0] == '\0')
+    return;
+  g_autofree char *name_file = g_build_filename(cat_path, ".name", NULL);
+  g_file_set_contents(name_file, stripped, -1, NULL);
+  reload_categories(self);
+  populate_manage_page(self);
+}
+
+static void on_manage_rename_category(GtkButton *button, gpointer user_data) {
+  MoeMojiWindow *self = MOEMOJI_WINDOW(user_data);
+  const char *cat_path = g_object_get_data(G_OBJECT(button), "cat-path");
+  const char *cat_name = g_object_get_data(G_OBJECT(button), "cat-name");
+
+  AdwAlertDialog *dialog =
+      ADW_ALERT_DIALOG(adw_alert_dialog_new("Rename Category", NULL));
+  adw_alert_dialog_add_responses(dialog, "cancel", "Cancel", "rename", "Rename",
+                                 NULL);
+  adw_alert_dialog_set_response_appearance(dialog, "rename",
+                                           ADW_RESPONSE_SUGGESTED);
+  adw_alert_dialog_set_default_response(dialog, "rename");
+  adw_alert_dialog_set_close_response(dialog, "cancel");
+
+  GtkWidget *entry = gtk_entry_new();
+  gtk_editable_set_text(GTK_EDITABLE(entry), cat_name);
+  adw_alert_dialog_set_extra_child(dialog, entry);
+
+  g_object_set_data_full(G_OBJECT(dialog), "cat-path", g_strdup(cat_path),
+                         g_free);
+  g_object_set_data(G_OBJECT(dialog), "name-entry", entry);
+  adw_alert_dialog_choose(dialog, GTK_WIDGET(self), NULL,
+                          (GAsyncReadyCallback)on_rename_category_response,
+                          self);
+}
+
 static void on_manage_delete_category(GtkButton *button, gpointer user_data) {
   MoeMojiWindow *self = MOEMOJI_WINDOW(user_data);
   const char *cat_path = g_object_get_data(G_OBJECT(button), "cat-path");
@@ -888,7 +949,7 @@ static void populate_manage_page(MoeMojiWindow *self) {
   for (guint i = 0; i < entries->len; i++) {
     char **pair = g_ptr_array_index(entries, i);
     g_autofree char *cat_path = g_build_filename(pair[0], pair[1], NULL);
-    g_autofree char *display_name = make_display_name(pair[1]);
+    g_autofree char *display_name = get_category_display_name(cat_path);
 
     GtkWidget *cat_hbox = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 8);
     gtk_widget_set_margin_top(cat_hbox, 8);
@@ -898,6 +959,19 @@ static void populate_manage_page(MoeMojiWindow *self) {
     gtk_label_set_xalign(GTK_LABEL(cat_label), 0.0);
     gtk_widget_set_hexpand(cat_label, TRUE);
     gtk_box_append(GTK_BOX(cat_hbox), cat_label);
+
+    GtkWidget *cat_rename_btn =
+        gtk_button_new_from_icon_name("document-edit-symbolic");
+    gtk_widget_add_css_class(cat_rename_btn, "manage-cat-rename");
+    gtk_widget_add_css_class(cat_rename_btn, "circular");
+    gtk_widget_set_valign(cat_rename_btn, GTK_ALIGN_CENTER);
+    g_object_set_data_full(G_OBJECT(cat_rename_btn), "cat-path",
+                           g_strdup(cat_path), g_free);
+    g_object_set_data_full(G_OBJECT(cat_rename_btn), "cat-name",
+                           g_strdup(display_name), g_free);
+    g_signal_connect(cat_rename_btn, "clicked",
+                     G_CALLBACK(on_manage_rename_category), self);
+    gtk_box_append(GTK_BOX(cat_hbox), cat_rename_btn);
 
     GtkWidget *cat_del_btn =
         gtk_button_new_from_icon_name("window-close-symbolic");
@@ -1231,35 +1305,112 @@ static void on_import_activated(G_GNUC_UNUSED GSimpleAction *action,
   g_object_unref(dialog);
 }
 
+static void update_sort_button_icon(MoeMojiWindow *self) {
+  g_autofree char *order =
+      g_settings_get_string(self->settings, "category-sort");
+  const char *icon = g_str_has_suffix(order, "-desc")
+                         ? "view-sort-descending-symbolic"
+                         : "view-sort-ascending-symbolic";
+  gtk_menu_button_set_icon_name(GTK_MENU_BUTTON(self->sort_button), icon);
+}
+
+static void on_sort_order_changed(GSimpleAction *action, GVariant *parameter,
+                                  gpointer user_data) {
+  MoeMojiWindow *self = MOEMOJI_WINDOW(user_data);
+  g_simple_action_set_state(action, parameter);
+  const char *order = g_variant_get_string(parameter, NULL);
+  g_settings_set_string(self->settings, "category-sort", order);
+  current_sort_order = order;
+  update_sort_button_icon(self);
+  reload_categories(self);
+}
+
 static void moemoji_window_class_init(MoeMojiWindowClass *klass) {
   GtkWidgetClass *widget_class = GTK_WIDGET_CLASS(klass);
   gtk_widget_class_set_template_from_resource(
       widget_class, "/jp/angeltech/MoeMoji/moemoji-window.ui");
+  gtk_widget_class_bind_template_child(widget_class, MoeMojiWindow,
+                                       wrapper_box);
   gtk_widget_class_bind_template_child(widget_class, MoeMojiWindow, outer_box);
   gtk_widget_class_bind_template_child(widget_class, MoeMojiWindow,
                                        content_box);
   gtk_widget_class_bind_template_child(widget_class, MoeMojiWindow,
                                        search_entry);
-  gtk_widget_class_bind_template_child(widget_class, MoeMojiWindow, header_bar);
   gtk_widget_class_bind_template_child(widget_class, MoeMojiWindow,
                                        kaomoji_scroll);
   gtk_widget_class_bind_template_child(widget_class, MoeMojiWindow, view_stack);
-  gtk_widget_class_bind_template_child(widget_class, MoeMojiWindow, add_button);
-  gtk_widget_class_bind_template_child(widget_class, MoeMojiWindow,
-                                       back_button);
-  gtk_widget_class_bind_template_child(widget_class, MoeMojiWindow,
-                                       menu_button);
 }
 
 static void moemoji_window_init(MoeMojiWindow *self) {
   gtk_widget_init_template(GTK_WIDGET(self));
   gtk_widget_add_css_class(GTK_WIDGET(self), "wallpaper-bg");
-  gtk_widget_add_css_class(GTK_WIDGET(self->header_bar), "wallpaper-bg");
   gtk_widget_add_css_class(GTK_WIDGET(self->content_box), "content-area");
+
+  GtkWidget *empty_titlebar = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 0);
+  gtk_widget_set_visible(empty_titlebar, FALSE);
+  gtk_window_set_titlebar(GTK_WINDOW(self), empty_titlebar);
+
+  self->header_bar = GTK_WIDGET(adw_header_bar_new());
+  gtk_widget_add_css_class(self->header_bar, "flat");
+  adw_header_bar_set_show_end_title_buttons(ADW_HEADER_BAR(self->header_bar),
+                                            TRUE);
+  self->settings = g_settings_new("jp.angeltech.MoeMoji");
+
+  self->add_button = gtk_button_new_from_icon_name("list-add-symbolic");
+  adw_header_bar_pack_start(ADW_HEADER_BAR(self->header_bar), self->add_button);
+
+  self->sort_button = GTK_WIDGET(gtk_menu_button_new());
+  GMenu *sort_menu = g_menu_new();
+  g_menu_append(sort_menu, "Alphabetically ↑", "win.sort-order::alpha-asc");
+  g_menu_append(sort_menu, "Alphabetically ↓", "win.sort-order::alpha-desc");
+  g_menu_append(sort_menu, "Modified ↑", "win.sort-order::modified-asc");
+  g_menu_append(sort_menu, "Modified ↓", "win.sort-order::modified-desc");
+  g_menu_append(sort_menu, "Created ↑", "win.sort-order::created-asc");
+  g_menu_append(sort_menu, "Created ↓", "win.sort-order::created-desc");
+  gtk_menu_button_set_menu_model(GTK_MENU_BUTTON(self->sort_button),
+                                 G_MENU_MODEL(sort_menu));
+  g_object_unref(sort_menu);
+  adw_header_bar_pack_start(ADW_HEADER_BAR(self->header_bar),
+                            self->sort_button);
+
+  g_autofree char *saved_order =
+      g_settings_get_string(self->settings, "category-sort");
+  GSimpleAction *sort_action = g_simple_action_new_stateful(
+      "sort-order", G_VARIANT_TYPE_STRING, g_variant_new_string(saved_order));
+  g_signal_connect(sort_action, "change-state",
+                   G_CALLBACK(on_sort_order_changed), self);
+  g_action_map_add_action(G_ACTION_MAP(self), G_ACTION(sort_action));
+  current_sort_order =
+      g_variant_get_string(g_action_get_state(G_ACTION(sort_action)), NULL);
+  update_sort_button_icon(self);
+  g_object_unref(sort_action);
+
+  self->back_button = gtk_button_new_from_icon_name("go-previous-symbolic");
+  gtk_widget_set_visible(self->back_button, FALSE);
+  adw_header_bar_pack_start(ADW_HEADER_BAR(self->header_bar),
+                            self->back_button);
+
+  self->menu_button = GTK_WIDGET(gtk_menu_button_new());
+  gtk_menu_button_set_icon_name(GTK_MENU_BUTTON(self->menu_button),
+                                "open-menu-symbolic");
+  GMenu *primary_menu = g_menu_new();
+  GMenu *sec1 = g_menu_new();
+  g_menu_append(sec1, "Manage…", "win.manage");
+  g_menu_append_section(primary_menu, NULL, G_MENU_MODEL(sec1));
+  g_object_unref(sec1);
+  GMenu *sec2 = g_menu_new();
+  g_menu_append(sec2, "Export…", "win.export");
+  g_menu_append(sec2, "Import…", "win.import");
+  g_menu_append_section(primary_menu, NULL, G_MENU_MODEL(sec2));
+  g_object_unref(sec2);
+  gtk_menu_button_set_menu_model(GTK_MENU_BUTTON(self->menu_button),
+                                 G_MENU_MODEL(primary_menu));
+  g_object_unref(primary_menu);
+  adw_header_bar_pack_end(ADW_HEADER_BAR(self->header_bar), self->menu_button);
+  gtk_box_prepend(self->wrapper_box, self->header_bar);
   self->category_widgets =
       g_ptr_array_new_with_free_func(category_widgets_free);
   self->active_chip_index = -1;
-  self->selected_category_dir = NULL;
 
   GSimpleAction *export_action = g_simple_action_new("export", NULL);
   g_signal_connect(export_action, "activate", G_CALLBACK(on_export_activated),
@@ -1287,7 +1438,7 @@ static void moemoji_window_init(MoeMojiWindow *self) {
   gtk_stack_add_named(self->view_stack, choice_page, "add-choice");
   GtkWidget *cat_page = build_add_category_page(self);
   gtk_stack_add_named(self->view_stack, cat_page, "add-category");
-  GtkWidget *pick_page = build_pick_category_page_widget(self);
+  GtkWidget *pick_page = build_pick_category_page_widget();
   gtk_stack_add_named(self->view_stack, pick_page, "pick-category");
   GtkWidget *entry_page = build_add_entry_page(self);
   gtk_stack_add_named(self->view_stack, entry_page, "add-entry");

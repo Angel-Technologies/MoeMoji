@@ -24,11 +24,16 @@ test_moemoji = executable('test-moemoji',
   c_args: ['-DSRCDIR="' + meson.project_source_root() + '"'],
 )
 
-test('moemoji-unit', test_moemoji)
+schema_dir = meson.project_build_root() / 'data'
+
+test('moemoji-unit', test_moemoji,
+  env: ['GSETTINGS_SCHEMA_DIR=' + schema_dir],
+)
 
 custom_target('run-unit-tests',
   command: [test_moemoji],
   output: 'test-stamp',
   build_by_default: true,
   depends: test_moemoji,
+  env: ['GSETTINGS_SCHEMA_DIR=' + schema_dir],
 )
