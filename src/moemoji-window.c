@@ -499,7 +499,8 @@ static void set_active_chip(MoeMojiWindow *self, int index) {
   }
 }
 
-static void scroll_chip_into_view(MoeMojiWindow *self, GtkWidget *chip) {
+static void scroll_chip_into_view(G_GNUC_UNUSED MoeMojiWindow *self,
+                                  GtkWidget *chip) {
   GtkWidget *sw = gtk_widget_get_ancestor(chip, GTK_TYPE_SCROLLED_WINDOW);
   if (!sw)
     return;
@@ -944,7 +945,7 @@ static void on_chip_drag_begin(GtkDragSource *source,
 static void clear_drop_indicator(GtkWidget *chip_box) {
   GtkWidget *active = g_object_get_data(G_OBJECT(chip_box), "active-drop-sep");
   if (active) {
-    gtk_widget_set_visible(active, FALSE);
+    gtk_widget_set_opacity(active, 0);
     g_object_set_data(G_OBJECT(chip_box), "active-drop-sep", NULL);
   }
 }
@@ -962,7 +963,7 @@ static void show_drop_indicator(GtkWidget *chip, double y) {
   else
     sep = g_object_get_data(G_OBJECT(chip), "drop-sep-after");
   if (sep) {
-    gtk_widget_set_visible(sep, TRUE);
+    gtk_widget_set_opacity(sep, 1);
     g_object_set_data(G_OBJECT(chip_box), "active-drop-sep", sep);
   }
 }
@@ -1198,7 +1199,8 @@ static void reload_categories(MoeMojiWindow *self) {
       GtkWidget *sep = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 0);
       gtk_widget_add_css_class(sep, "chip-drop-line");
       gtk_widget_set_size_request(sep, -1, 2);
-      gtk_widget_set_visible(sep, FALSE);
+      gtk_widget_set_opacity(sep, 0);
+      gtk_widget_set_can_target(sep, FALSE);
       gtk_box_append(GTK_BOX(chip_box), sep);
       g_object_set_data(G_OBJECT(btn), "drop-sep-before", sep);
       if (i > 0) {
@@ -1213,7 +1215,8 @@ static void reload_categories(MoeMojiWindow *self) {
         GtkWidget *tail = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 0);
         gtk_widget_add_css_class(tail, "chip-drop-line");
         gtk_widget_set_size_request(tail, -1, 2);
-        gtk_widget_set_visible(tail, FALSE);
+        gtk_widget_set_opacity(tail, 0);
+        gtk_widget_set_can_target(tail, FALSE);
         gtk_box_append(GTK_BOX(chip_box), tail);
         g_object_set_data(G_OBJECT(btn), "drop-sep-after", tail);
       }
@@ -1812,12 +1815,31 @@ static void on_reset_kaomojis(G_GNUC_UNUSED GSimpleAction *action,
                           self);
 }
 
+static void reset_chip_controllers(MoeMojiWindow *self) {
+  for (guint i = 0; i < self->category_widgets->len; i++) {
+    CategoryWidgets *cw = g_ptr_array_index(self->category_widgets, i);
+    if (!cw->chip)
+      continue;
+    GListModel *controllers = gtk_widget_observe_controllers(cw->chip);
+    guint n = g_list_model_get_n_items(controllers);
+    for (guint j = 0; j < n; j++) {
+      GtkEventController *c = g_list_model_get_item(controllers, j);
+      if (GTK_IS_DRAG_SOURCE(c) || GTK_IS_DROP_TARGET(c))
+        gtk_event_controller_reset(c);
+      g_object_unref(c);
+    }
+    g_object_unref(controllers);
+  }
+}
+
 static void on_sidebar_toggled(GtkToggleButton *toggle, gpointer user_data) {
   MoeMojiWindow *self = MOEMOJI_WINDOW(user_data);
   gboolean active = gtk_toggle_button_get_active(toggle);
   GtkWidget *start = gtk_paned_get_start_child(self->paned);
   if (start)
     gtk_widget_set_visible(start, active);
+  if (active)
+    reset_chip_controllers(self);
   gtk_button_set_icon_name(GTK_BUTTON(toggle),
                            active ? "pan-start-symbolic" : "pan-end-symbolic");
 }
