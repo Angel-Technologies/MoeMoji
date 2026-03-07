@@ -9,6 +9,8 @@
 G_DEFINE_TYPE(MoeMojiWindow, moemoji_window, GTK_TYPE_APPLICATION_WINDOW)
 
 static void reload_categories(MoeMojiWindow *self);
+static void copy_dir_recursive(const char *src, const char *dst);
+static void remove_dir_recursive(const char *path);
 
 static void category_widgets_free(gpointer data) {
   CategoryWidgets *cw = data;
@@ -57,6 +59,45 @@ char *find_kaomoji_dir(void) {
   g_free(installed);
 
   return NULL;
+}
+
+static char *user_kaomoji_dir(void) {
+  return g_build_filename(g_get_user_data_dir(), "moemoji", "kaomoji", NULL);
+}
+
+static void copy_builtins_to_user_dir(void) {
+  g_autofree char *dst = user_kaomoji_dir();
+  g_mkdir_with_parents(dst, 0755);
+  char *src = find_kaomoji_dir();
+  if (!src)
+    return;
+  GDir *dir = g_dir_open(src, 0, NULL);
+  if (dir) {
+    const char *name;
+    while ((name = g_dir_read_name(dir)) != NULL) {
+      g_autofree char *s = g_build_filename(src, name, NULL);
+      g_autofree char *d = g_build_filename(dst, name, NULL);
+      if (g_file_test(s, G_FILE_TEST_IS_DIR) &&
+          !g_file_test(d, G_FILE_TEST_EXISTS))
+        copy_dir_recursive(s, d);
+    }
+    g_dir_close(dir);
+  }
+  g_free(src);
+}
+
+static void first_launch_setup(void) {
+  g_autofree char *dir = user_kaomoji_dir();
+  if (g_file_test(dir, G_FILE_TEST_IS_DIR)) {
+    GDir *d = g_dir_open(dir, 0, NULL);
+    if (d) {
+      gboolean has_entries = g_dir_read_name(d) != NULL;
+      g_dir_close(d);
+      if (has_entries)
+        return;
+    }
+  }
+  copy_builtins_to_user_dir();
 }
 
 static void on_kaomoji_clicked(GtkButton *button, gpointer user_data) {
@@ -149,6 +190,18 @@ static void show_context_popover(GtkWidget *parent, GtkWidget *box, double x,
 }
 
 static void rebuild_pinned_box(MoeMojiWindow *self);
+
+/* Build a flat chip button with an ellipsizing left-aligned label. */
+static GtkWidget *make_chip_button(const char *label_text) {
+  GtkWidget *btn = gtk_button_new_with_label(label_text);
+  gtk_widget_add_css_class(btn, "category-chip");
+  gtk_widget_add_css_class(btn, "flat");
+  gtk_button_set_has_frame(GTK_BUTTON(btn), FALSE);
+  GtkWidget *lbl = gtk_button_get_child(GTK_BUTTON(btn));
+  gtk_label_set_xalign(GTK_LABEL(lbl), 0.0);
+  gtk_label_set_ellipsize(GTK_LABEL(lbl), PANGO_ELLIPSIZE_END);
+  return btn;
+}
 
 static gboolean is_kaomoji_pinned(MoeMojiWindow *self, const char *text) {
   g_auto(GStrv) pinned = g_settings_get_strv(self->settings, "pinned-kaomojis");
@@ -482,6 +535,7 @@ static void on_chip_clicked(GtkButton *button, gpointer user_data) {
   for (guint i = 0; i < self->category_widgets->len; i++) {
     CategoryWidgets *cw = g_ptr_array_index(self->category_widgets, i);
     if (cw->chip == GTK_WIDGET(button)) {
+      set_active_chip(self, (int)i);
       scroll_to_category(self, (int)i);
       return;
     }
@@ -632,19 +686,14 @@ static gint compare_entries(gconstpointer a, gconstpointer b) {
 }
 
 static GPtrArray *collect_all_categories(void) {
-  g_autofree char *user_dir =
-      g_build_filename(g_get_user_data_dir(), "moemoji", "kaomoji", NULL);
-  char *kaomoji_dir = find_kaomoji_dir();
+  g_autofree char *user_dir = user_kaomoji_dir();
   GHashTable *seen =
       g_hash_table_new_full(g_str_hash, g_str_equal, g_free, NULL);
   GPtrArray *entries = g_ptr_array_new();
   if (g_file_test(user_dir, G_FILE_TEST_IS_DIR))
     collect_categories(user_dir, seen, entries);
-  if (kaomoji_dir)
-    collect_categories(kaomoji_dir, seen, entries);
   g_hash_table_destroy(seen);
   g_ptr_array_sort(entries, compare_entries);
-  g_free(kaomoji_dir);
   return entries;
 }
 
@@ -755,15 +804,11 @@ static void on_category_name_changed(G_GNUC_UNUSED GtkEditable *editable,
   const char *text =
       gtk_editable_get_text(GTK_EDITABLE(self->category_name_entry));
   const char *error = NULL;
-  gboolean valid = TRUE;
 
-  if (!is_valid_category_name(text)) {
-    valid = FALSE;
-  } else if (category_name_taken(text)) {
+  if (is_valid_category_name(text) && category_name_taken(text))
     error = "A category with this name already exists";
-    valid = FALSE;
-  }
 
+  gboolean valid = is_valid_category_name(text) && !error;
   gtk_widget_set_sensitive(self->category_save_button, valid);
   gtk_label_set_text(GTK_LABEL(self->category_error_label), error ? error : "");
   gtk_widget_set_visible(self->category_error_label, error != NULL);
@@ -778,8 +823,8 @@ static void on_category_save_clicked(G_GNUC_UNUSED GtkButton *button,
     return;
   g_autofree char *stripped = g_strstrip(g_strdup(text));
   g_autofree char *uuid = g_uuid_string_random();
-  g_autofree char *cat_path =
-      g_build_filename(g_get_user_data_dir(), "moemoji", "kaomoji", uuid, NULL);
+  g_autofree char *udir = user_kaomoji_dir();
+  g_autofree char *cat_path = g_build_filename(udir, uuid, NULL);
   g_mkdir_with_parents(cat_path, 0755);
   g_autofree char *name_file = g_build_filename(cat_path, ".name", NULL);
   g_file_set_contents(name_file, stripped, -1, NULL);
@@ -1063,20 +1108,12 @@ static void rebuild_pinned_box(MoeMojiWindow *self) {
   for (guint i = 0; pinned[i]; i++) {
     const char *text = pinned[i];
     gboolean multiline = (strchr(text, '\n') != NULL);
-    const char *label_text = text;
     g_autofree char *first_line = NULL;
     if (multiline) {
       const char *nl = strchr(text, '\n');
       first_line = g_strndup(text, nl - text);
-      label_text = first_line;
     }
-    GtkWidget *btn = gtk_button_new_with_label(label_text);
-    gtk_widget_add_css_class(btn, "category-chip");
-    gtk_widget_add_css_class(btn, "flat");
-    gtk_button_set_has_frame(GTK_BUTTON(btn), FALSE);
-    GtkWidget *label = gtk_button_get_child(GTK_BUTTON(btn));
-    gtk_label_set_xalign(GTK_LABEL(label), 0.0);
-    gtk_label_set_ellipsize(GTK_LABEL(label), PANGO_ELLIPSIZE_END);
+    GtkWidget *btn = make_chip_button(multiline ? first_line : text);
     if (multiline)
       g_object_set_data_full(G_OBJECT(btn), "full-text", g_strdup(text),
                              g_free);
@@ -1125,13 +1162,7 @@ static void reload_categories(MoeMojiWindow *self) {
     GtkWidget *chip_box = gtk_box_new(GTK_ORIENTATION_VERTICAL, 2);
     for (guint i = 0; i < self->category_widgets->len; i++) {
       CategoryWidgets *cw = g_ptr_array_index(self->category_widgets, i);
-      GtkWidget *btn = gtk_button_new_with_label(cw->name);
-      gtk_widget_add_css_class(btn, "category-chip");
-      gtk_widget_add_css_class(btn, "flat");
-      gtk_button_set_has_frame(GTK_BUTTON(btn), FALSE);
-      GtkWidget *chip_label = gtk_button_get_child(GTK_BUTTON(btn));
-      gtk_label_set_xalign(GTK_LABEL(chip_label), 0.0);
-      gtk_label_set_ellipsize(GTK_LABEL(chip_label), PANGO_ELLIPSIZE_END);
+      GtkWidget *btn = make_chip_button(cw->name);
       g_object_set_data_full(G_OBJECT(btn), "cat-path", g_strdup(cw->path),
                              g_free);
       g_object_set_data_full(G_OBJECT(btn), "cat-name", g_strdup(cw->name),
@@ -1466,19 +1497,13 @@ static void on_rename_entry_changed(GtkEditable *editable, gpointer user_data) {
   const char *original = g_object_get_data(G_OBJECT(dialog), "original-name");
   g_autofree char *stripped = g_strstrip(g_strdup(text));
   const char *error = NULL;
-  gboolean valid = TRUE;
 
-  if (stripped[0] == '\0') {
+  if (stripped[0] == '\0')
     error = "Name cannot be empty";
-    valid = FALSE;
-  } else if (g_strcmp0(stripped, original) == 0) {
-    error = NULL;
-    valid = FALSE;
-  } else if (category_name_taken(stripped)) {
+  else if (category_name_taken(stripped))
     error = "A category with this name already exists";
-    valid = FALSE;
-  }
 
+  gboolean valid = !error && g_strcmp0(stripped, original) != 0;
   adw_alert_dialog_set_body(dialog, error ? error : "");
   adw_alert_dialog_set_response_enabled(dialog, "rename", valid);
 }
@@ -1596,8 +1621,7 @@ static void on_export_save_ready(GObject *source, GAsyncResult *res,
   g_autofree char *tmpdir = g_dir_make_tmp("moemoji-export-XXXXXX", NULL);
   if (!tmpdir)
     return;
-  g_autofree char *user_dir =
-      g_build_filename(g_get_user_data_dir(), "moemoji", "kaomoji", NULL);
+  g_autofree char *user_dir = user_kaomoji_dir();
   if (g_file_test(user_dir, G_FILE_TEST_IS_DIR)) {
     GDir *dir = g_dir_open(user_dir, 0, NULL);
     if (dir) {
@@ -1611,23 +1635,6 @@ static void on_export_save_ready(GObject *source, GAsyncResult *res,
       }
       g_dir_close(dir);
     }
-  }
-  char *kaomoji_dir = find_kaomoji_dir();
-  if (kaomoji_dir) {
-    GDir *dir = g_dir_open(kaomoji_dir, 0, NULL);
-    if (dir) {
-      const char *name;
-      while ((name = g_dir_read_name(dir)) != NULL) {
-        g_autofree char *dst = g_build_filename(tmpdir, name, NULL);
-        if (g_file_test(dst, G_FILE_TEST_IS_DIR))
-          continue;
-        g_autofree char *src = g_build_filename(kaomoji_dir, name, NULL);
-        if (g_file_test(src, G_FILE_TEST_IS_DIR))
-          copy_dir_recursive(src, dst);
-      }
-      g_dir_close(dir);
-    }
-    g_free(kaomoji_dir);
   }
   GSubprocess *tar = g_subprocess_new(G_SUBPROCESS_FLAGS_NONE, NULL, "tar",
                                       "czf", path, "-C", tmpdir, ".", NULL);
@@ -1665,8 +1672,7 @@ static void on_export_activated(G_GNUC_UNUSED GSimpleAction *action,
 }
 
 static void clear_user_categories(void) {
-  g_autofree char *user_dir =
-      g_build_filename(g_get_user_data_dir(), "moemoji", "kaomoji", NULL);
+  g_autofree char *user_dir = user_kaomoji_dir();
   GDir *dir = g_dir_open(user_dir, 0, NULL);
   if (!dir)
     return;
@@ -1680,8 +1686,7 @@ static void clear_user_categories(void) {
 }
 
 static void do_import(MoeMojiWindow *self, const char *fpath) {
-  g_autofree char *user_dir =
-      g_build_filename(g_get_user_data_dir(), "moemoji", "kaomoji", NULL);
+  g_autofree char *user_dir = user_kaomoji_dir();
   clear_user_categories();
   g_mkdir_with_parents(user_dir, 0755);
   GSubprocess *tar = g_subprocess_new(G_SUBPROCESS_FLAGS_NONE, NULL, "tar",
@@ -1769,6 +1774,38 @@ static void on_restore_default_order(G_GNUC_UNUSED GSimpleAction *action,
   reload_categories(self);
 }
 
+static void on_reset_kaomojis_response(AdwAlertDialog *dialog,
+                                       GAsyncResult *res, gpointer user_data) {
+  MoeMojiWindow *self = MOEMOJI_WINDOW(user_data);
+  const char *response = adw_alert_dialog_choose_finish(dialog, res);
+  if (g_strcmp0(response, "reset") != 0)
+    return;
+  clear_user_categories();
+  copy_builtins_to_user_dir();
+  g_settings_reset(self->settings, "category-order");
+  g_settings_reset(self->settings, "pinned-kaomojis");
+  reload_categories(self);
+}
+
+static void on_reset_kaomojis(G_GNUC_UNUSED GSimpleAction *action,
+                              G_GNUC_UNUSED GVariant *parameter,
+                              gpointer user_data) {
+  MoeMojiWindow *self = MOEMOJI_WINDOW(user_data);
+  AdwAlertDialog *dialog = ADW_ALERT_DIALOG(adw_alert_dialog_new(
+      "Reset Kaomojis?", "This will delete all custom categories and restore "
+                         "the built-in kaomojis. Pinned kaomojis will also "
+                         "be cleared."));
+  adw_alert_dialog_add_responses(dialog, "cancel", "Cancel", "reset", "Reset",
+                                 NULL);
+  adw_alert_dialog_set_response_appearance(dialog, "reset",
+                                           ADW_RESPONSE_DESTRUCTIVE);
+  adw_alert_dialog_set_default_response(dialog, "cancel");
+  adw_alert_dialog_set_close_response(dialog, "cancel");
+  adw_alert_dialog_choose(dialog, GTK_WIDGET(self), NULL,
+                          (GAsyncReadyCallback)on_reset_kaomojis_response,
+                          self);
+}
+
 static void on_sidebar_toggled(GtkToggleButton *toggle, gpointer user_data) {
   MoeMojiWindow *self = MOEMOJI_WINDOW(user_data);
   gboolean active = gtk_toggle_button_get_active(toggle);
@@ -1816,6 +1853,7 @@ static void moemoji_window_class_init(MoeMojiWindowClass *klass) {
 }
 
 static void moemoji_window_init(MoeMojiWindow *self) {
+  first_launch_setup();
   gtk_widget_init_template(GTK_WIDGET(self));
   gtk_widget_add_css_class(GTK_WIDGET(self), "wallpaper-bg");
   gtk_widget_add_css_class(GTK_WIDGET(self->content_box), "content-area");
@@ -1885,6 +1923,7 @@ static void moemoji_window_init(MoeMojiWindow *self) {
   GMenu *primary_menu = g_menu_new();
   g_menu_append(primary_menu, "Export…", "win.export");
   g_menu_append(primary_menu, "Import…", "win.import");
+  g_menu_append(primary_menu, "Reset Kaomojis…", "win.reset-kaomojis");
   gtk_menu_button_set_menu_model(GTK_MENU_BUTTON(self->menu_button),
                                  G_MENU_MODEL(primary_menu));
   g_object_unref(primary_menu);
@@ -1894,48 +1933,25 @@ static void moemoji_window_init(MoeMojiWindow *self) {
       g_ptr_array_new_with_free_func(category_widgets_free);
   self->active_chip_index = -1;
 
-  GSimpleAction *export_action = g_simple_action_new("export", NULL);
-  g_signal_connect(export_action, "activate", G_CALLBACK(on_export_activated),
-                   self);
-  g_action_map_add_action(G_ACTION_MAP(self), G_ACTION(export_action));
-  g_object_unref(export_action);
-
-  GSimpleAction *import_action = g_simple_action_new("import", NULL);
-  g_signal_connect(import_action, "activate", G_CALLBACK(on_import_activated),
-                   self);
-  g_action_map_add_action(G_ACTION_MAP(self), G_ACTION(import_action));
-  g_object_unref(import_action);
-
-  GSimpleAction *ctx_rename_cat =
-      g_simple_action_new("ctx-rename-category", NULL);
-  g_signal_connect(ctx_rename_cat, "activate",
-                   G_CALLBACK(on_ctx_rename_category), self);
-  g_action_map_add_action(G_ACTION_MAP(self), G_ACTION(ctx_rename_cat));
-  g_object_unref(ctx_rename_cat);
-
-  GSimpleAction *ctx_delete_cat =
-      g_simple_action_new("ctx-delete-category", NULL);
-  g_signal_connect(ctx_delete_cat, "activate",
-                   G_CALLBACK(on_ctx_delete_category), self);
-  g_action_map_add_action(G_ACTION_MAP(self), G_ACTION(ctx_delete_cat));
-  g_object_unref(ctx_delete_cat);
-
-  GSimpleAction *ctx_delete_emote =
-      g_simple_action_new("ctx-delete-emote", NULL);
-  g_signal_connect(ctx_delete_emote, "activate",
-                   G_CALLBACK(on_ctx_delete_emote), self);
-  g_action_map_add_action(G_ACTION_MAP(self), G_ACTION(ctx_delete_emote));
-  g_object_unref(ctx_delete_emote);
-
-  GSimpleAction *ctx_pin = g_simple_action_new("ctx-pin-emote", NULL);
-  g_signal_connect(ctx_pin, "activate", G_CALLBACK(on_ctx_pin_emote), self);
-  g_action_map_add_action(G_ACTION_MAP(self), G_ACTION(ctx_pin));
-  g_object_unref(ctx_pin);
-
-  GSimpleAction *ctx_unpin = g_simple_action_new("ctx-unpin-emote", NULL);
-  g_signal_connect(ctx_unpin, "activate", G_CALLBACK(on_ctx_unpin_emote), self);
-  g_action_map_add_action(G_ACTION_MAP(self), G_ACTION(ctx_unpin));
-  g_object_unref(ctx_unpin);
+  static const struct {
+    const char *name;
+    GCallback cb;
+  } actions[] = {
+      {"export", G_CALLBACK(on_export_activated)},
+      {"import", G_CALLBACK(on_import_activated)},
+      {"reset-kaomojis", G_CALLBACK(on_reset_kaomojis)},
+      {"ctx-rename-category", G_CALLBACK(on_ctx_rename_category)},
+      {"ctx-delete-category", G_CALLBACK(on_ctx_delete_category)},
+      {"ctx-delete-emote", G_CALLBACK(on_ctx_delete_emote)},
+      {"ctx-pin-emote", G_CALLBACK(on_ctx_pin_emote)},
+      {"ctx-unpin-emote", G_CALLBACK(on_ctx_unpin_emote)},
+  };
+  for (gsize i = 0; i < G_N_ELEMENTS(actions); i++) {
+    GSimpleAction *a = g_simple_action_new(actions[i].name, NULL);
+    g_signal_connect(a, "activate", actions[i].cb, self);
+    g_action_map_add_action(G_ACTION_MAP(self), G_ACTION(a));
+    g_object_unref(a);
+  }
 
   g_signal_connect(self->add_button, "clicked", G_CALLBACK(on_add_clicked),
                    self);
