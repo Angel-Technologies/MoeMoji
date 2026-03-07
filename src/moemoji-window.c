@@ -536,7 +536,13 @@ static void on_chip_clicked(GtkButton *button, gpointer user_data) {
     CategoryWidgets *cw = g_ptr_array_index(self->category_widgets, i);
     if (cw->chip == GTK_WIDGET(button)) {
       set_active_chip(self, (int)i);
-      scroll_to_category(self, (int)i);
+      graphene_point_t p;
+      if (gtk_widget_compute_point(cw->header, GTK_WIDGET(self->content_box),
+                                   &GRAPHENE_POINT_INIT(0, 0), &p)) {
+        GtkAdjustment *vadj = gtk_scrolled_window_get_vadjustment(
+            GTK_SCROLLED_WINDOW(self->kaomoji_scroll));
+        gtk_adjustment_set_value(vadj, p.y);
+      }
       return;
     }
   }
