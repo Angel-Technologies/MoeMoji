@@ -4,7 +4,17 @@
         <key name="category-sort" type="s">
             <default>'alpha-asc'</default>
             <summary>Category sort order</summary>
-            <description>How categories are sorted: alpha-asc, alpha-desc, modified-asc, modified-desc, created-asc, created-desc</description>
+            <description>How categories are sorted: alpha-asc, alpha-desc, modified-asc, modified-desc</description>
+        </key>
+        <key name="category-order" type="as">
+            <default>['happy', 'love', 'greeting', 'hugging', 'friends', 'winking', 'sympathy', 'music', 'magic', 'surprise', 'food', 'games', 'faces', 'running', 'sleeping', 'writing', 'special', 'nosebleeding', 'apologizing', 'hiding', 'embarassment', 'confusion', 'doubt', 'indifference', 'dissatisfaction', 'fear', 'sadness', 'pain', 'anger', 'enemies', 'weapons', 'cat', 'dog', 'bear', 'rabbit', 'bird', 'fish', 'pig', 'spider']</default>
+            <summary>Category order</summary>
+            <description>Ordered list of category directory basenames for custom sidebar/content ordering</description>
+        </key>
+        <key name="pinned-kaomojis" type="as">
+            <default>[]</default>
+            <summary>Pinned kaomojis</summary>
+            <description>List of pinned kaomoji strings shown in the sidebar</description>
         </key>
     </schema>
 </schemalist>

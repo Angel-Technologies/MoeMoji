@@ -1,22 +1,25 @@
 #pragma once
 
-#include <gtk/gtk.h>
+#include <adwaita.h>
 
 typedef struct {
   GtkWidget *header;
   GtkWidget *flow;
   GtkWidget *chip;
   char *name;
+  char *path;
 } CategoryWidgets;
 
 struct _MoeMojiWindow {
   GtkApplicationWindow parent_instance;
-  GtkBox *wrapper_box;
+  GtkPaned *paned;
+  GtkBox *right_pane;
   GtkBox *outer_box;
   GtkBox *content_box;
   GtkSearchEntry *search_entry;
   GtkWidget *header_bar;
   GtkBox *category_bar;
+  GtkWidget *sidebar_toggle;
   GtkWidget *kaomoji_scroll;
   GPtrArray *category_widgets;
   GtkWidget *bottom_spacer;
@@ -30,9 +33,16 @@ struct _MoeMojiWindow {
   GtkEntry *category_name_entry;
   GtkWidget *entry_text_view;
   GtkWidget *category_save_button;
+  GtkWidget *category_error_label;
   char *selected_category_dir;
   gulong scroll_handler_id;
   gulong page_size_handler_id;
+  char *ctx_cat_path;
+  char *ctx_cat_name;
+  char *ctx_emote_path;
+  char *ctx_emote_text;
+  GtkBox *pinned_box;
+  AdwToastOverlay *toast_overlay;
 };
 
 G_BEGIN_DECLS

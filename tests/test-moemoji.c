@@ -266,8 +266,6 @@ static void test_window_stack_pages_exist(void) {
       gtk_stack_get_child_by_name(test_self->view_stack, "pick-category"));
   g_assert_nonnull(
       gtk_stack_get_child_by_name(test_self->view_stack, "add-entry"));
-  g_assert_nonnull(
-      gtk_stack_get_child_by_name(test_self->view_stack, "manage"));
 
   window_test_teardown();
 }
@@ -499,29 +497,90 @@ static void test_category_name_validation(void) {
   window_test_teardown();
 }
 
-static void test_manage_search_entry(void) {
+static void test_toast_overlay_exists(void) {
   window_test_setup();
-  GtkWidget *page =
-      gtk_stack_get_child_by_name(test_self->view_stack, "manage");
-  g_assert_nonnull(page);
-  GtkWidget *search = g_object_get_data(G_OBJECT(page), "manage-search");
-  g_assert_nonnull(search);
-  g_assert_true(GTK_IS_SEARCH_ENTRY(search));
+  g_assert_nonnull(test_self->toast_overlay);
+  g_assert_true(ADW_IS_TOAST_OVERLAY(test_self->toast_overlay));
   window_test_teardown();
 }
 
-static void test_manage_populated(void) {
+static void test_chip_ellipsize(void) {
   window_test_setup();
-  g_action_group_activate_action(G_ACTION_GROUP(test_self), "manage", NULL);
-  GtkWidget *page =
-      gtk_stack_get_child_by_name(test_self->view_stack, "manage");
-  GtkWidget *content = g_object_get_data(G_OBJECT(page), "manage-content");
-  g_assert_nonnull(content);
-  g_assert_nonnull(gtk_widget_get_first_child(content));
+  for (guint i = 0; i < test_self->category_widgets->len; i++) {
+    CategoryWidgets *cw = g_ptr_array_index(test_self->category_widgets, i);
+    GtkWidget *label = gtk_button_get_child(GTK_BUTTON(cw->chip));
+    g_assert_cmpint(gtk_label_get_ellipsize(GTK_LABEL(label)), ==,
+                    PANGO_ELLIPSIZE_END);
+  }
   window_test_teardown();
 }
 
-static void test_manage_dupe_name_blocked(void) {
+static void test_chip_drop_separators(void) {
+  window_test_setup();
+  guint len = test_self->category_widgets->len;
+  for (guint i = 0; i < len; i++) {
+    CategoryWidgets *cw = g_ptr_array_index(test_self->category_widgets, i);
+    g_assert_nonnull(g_object_get_data(G_OBJECT(cw->chip), "drop-sep-before"));
+    if (i == len - 1)
+      g_assert_nonnull(g_object_get_data(G_OBJECT(cw->chip), "drop-sep-after"));
+  }
+  window_test_teardown();
+}
+
+static void test_sidebar_toggle_icon(void) {
+  window_test_setup();
+  const char *icon =
+      gtk_button_get_icon_name(GTK_BUTTON(test_self->sidebar_toggle));
+  g_assert_cmpstr(icon, ==, "pan-start-symbolic");
+  gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(test_self->sidebar_toggle),
+                               FALSE);
+  icon = gtk_button_get_icon_name(GTK_BUTTON(test_self->sidebar_toggle));
+  g_assert_cmpstr(icon, ==, "pan-end-symbolic");
+  gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(test_self->sidebar_toggle),
+                               TRUE);
+  icon = gtk_button_get_icon_name(GTK_BUTTON(test_self->sidebar_toggle));
+  g_assert_cmpstr(icon, ==, "pan-start-symbolic");
+  window_test_teardown();
+}
+
+static gboolean settings_has_pinned(GSettings *settings, const char *text) {
+  g_auto(GStrv) pinned = g_settings_get_strv(settings, "pinned-kaomojis");
+  for (guint i = 0; pinned[i]; i++) {
+    if (g_strcmp0(pinned[i], text) == 0)
+      return TRUE;
+  }
+  return FALSE;
+}
+
+static void test_delete_unpins_emote(void) {
+  window_test_setup();
+
+  const char *pin[] = {"(^_^)", "other", NULL};
+  g_settings_set_strv(test_self->settings, "pinned-kaomojis", pin);
+  g_assert_true(settings_has_pinned(test_self->settings, "(^_^)"));
+
+  const char *text = "(^_^)";
+  g_auto(GStrv) pinned =
+      g_settings_get_strv(test_self->settings, "pinned-kaomojis");
+  GPtrArray *arr = g_ptr_array_new();
+  for (guint i = 0; pinned[i]; i++) {
+    if (g_strcmp0(pinned[i], text) != 0)
+      g_ptr_array_add(arr, pinned[i]);
+  }
+  g_ptr_array_add(arr, NULL);
+  g_settings_set_strv(test_self->settings, "pinned-kaomojis",
+                      (const char *const *)arr->pdata);
+  g_ptr_array_free(arr, TRUE);
+
+  g_assert_false(settings_has_pinned(test_self->settings, "(^_^)"));
+  g_assert_true(settings_has_pinned(test_self->settings, "other"));
+
+  const char *empty[] = {NULL};
+  g_settings_set_strv(test_self->settings, "pinned-kaomojis", empty);
+  window_test_teardown();
+}
+
+static void test_dupe_name_blocked(void) {
   window_test_setup();
   g_assert_cmpuint(test_self->category_widgets->len, >, 0);
   CategoryWidgets *cw = g_ptr_array_index(test_self->category_widgets, 0);
@@ -580,10 +639,12 @@ int main(int argc, char *argv[]) {
                     test_export_creates_archive);
     g_test_add_func("/window/import-extracts-and-loads",
                     test_import_extracts_and_loads);
-    g_test_add_func("/window/manage-search-entry", test_manage_search_entry);
-    g_test_add_func("/window/manage-populated", test_manage_populated);
-    g_test_add_func("/window/manage-dupe-name-blocked",
-                    test_manage_dupe_name_blocked);
+    g_test_add_func("/window/dupe-name-blocked", test_dupe_name_blocked);
+    g_test_add_func("/window/toast-overlay-exists", test_toast_overlay_exists);
+    g_test_add_func("/window/chip-ellipsize", test_chip_ellipsize);
+    g_test_add_func("/window/chip-drop-separators", test_chip_drop_separators);
+    g_test_add_func("/window/sidebar-toggle-icon", test_sidebar_toggle_icon);
+    g_test_add_func("/window/delete-unpins-emote", test_delete_unpins_emote);
   }
 
   return g_test_run();
