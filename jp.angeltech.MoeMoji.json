@@ -17,8 +17,8 @@
               "sources": [
                   {
                       "type": "archive",
-                      "url": "https://gitea.angeltech.jp/Angel-Technologies/MoeMoji/archive/v0.3.2.tar.gz",
-                      "sha256": "6cf219ed740ab84eda794447806d8323f42def32b40b858ba54e6c9910f842e2"
+                      "url": "https://gitea.angeltech.jp/Angel-Technologies/MoeMoji/archive/v0.3.3.tar.gz",
+                      "sha256": "3a002f44bd571f5f5e9f1be0abf9c2395bc14ff831531b3939a71524323cc576"
                   }
               ]
           }
