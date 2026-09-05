@@ -245,12 +245,8 @@ GVariant *sni_get_property(G_GNUC_UNUSED GDBusConnection *connection,
     return g_variant_new_string("MoeMoji");
   if (g_strcmp0(property_name, "Status") == 0)
     return g_variant_new_string("Active");
-  if (g_strcmp0(property_name, "IconName") == 0) {
-    MoeMojiApplication *self = MOEMOJI_APPLICATION(user_data);
-    return g_variant_new_string(self->tray_icon_name
-                                    ? self->tray_icon_name
-                                    : "jp.angeltech.MoeMoji-tray-dark");
-  }
+  if (g_strcmp0(property_name, "IconName") == 0)
+    return g_variant_new_string("jp.angeltech.MoeMoji-tray-symbolic");
   if (g_strcmp0(property_name, "ItemIsMenu") == 0)
     return g_variant_new_boolean(FALSE);
   if (g_strcmp0(property_name, "Menu") == 0)
@@ -268,25 +264,6 @@ static const GDBusInterfaceVTable sni_vtable = {
     .get_property = sni_get_property,
     .set_property = NULL,
 };
-
-static void update_tray_icon(MoeMojiApplication *self) {
-  AdwStyleManager *sm = adw_style_manager_get_default();
-  gboolean dark = adw_style_manager_get_dark(sm);
-  self->tray_icon_name = dark ? "jp.angeltech.MoeMoji-tray-dark"
-                              : "jp.angeltech.MoeMoji-tray-light";
-
-  if (self->dbus_conn && self->sni_registration_id > 0) {
-    g_dbus_connection_emit_signal(self->dbus_conn, NULL, "/StatusNotifierItem",
-                                  "org.kde.StatusNotifierItem", "NewIcon", NULL,
-                                  NULL);
-  }
-}
-
-static void on_dark_changed(G_GNUC_UNUSED GObject *obj,
-                            G_GNUC_UNUSED GParamSpec *pspec,
-                            gpointer user_data) {
-  update_tray_icon(MOEMOJI_APPLICATION(user_data));
-}
 
 static void setup_sni(MoeMojiApplication *self) {
   GError *error = NULL;
@@ -547,9 +524,6 @@ static void moemoji_application_startup(GApplication *app) {
     }
   }
   setup_sni(self);
-  update_tray_icon(self);
-  g_signal_connect(adw_style_manager_get_default(), "notify::dark",
-                   G_CALLBACK(on_dark_changed), self);
   setup_global_shortcuts(self);
 }
 

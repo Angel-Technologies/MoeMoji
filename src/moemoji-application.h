@@ -13,7 +13,6 @@ struct _MoeMojiApplication {
   guint sni_registration_id;
   guint menu_registration_id;
   gchar *icon_theme_path;
-  const gchar *tray_icon_name;
   GDBusProxy *shortcuts_proxy;
   gchar *shortcuts_session_path;
   gboolean has_tray;

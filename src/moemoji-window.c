@@ -329,6 +329,7 @@ static void add_kaomoji_button(MoeMojiWindow *self, GtkFlowBox *flow,
   GtkWidget *button = gtk_button_new_with_label(label_text);
   gtk_widget_set_halign(button, GTK_ALIGN_FILL);
   GtkWidget *label = gtk_button_get_child(GTK_BUTTON(button));
+  gtk_widget_add_css_class(label, "kaomoji-label");
   gtk_label_set_ellipsize(GTK_LABEL(label), PANGO_ELLIPSIZE_END);
   gtk_label_set_xalign(GTK_LABEL(label), 0.0);
   gtk_widget_add_css_class(button, "kaomoji-button");

@@ -17,11 +17,6 @@ install_data(
 )
 
 install_data(
-  join_paths(scalable_dir, ('@0@-tray-dark.svg').format(application_id)),
-  install_dir: join_paths(get_option('datadir'), 'icons', scalable_dir)
-)
-
-install_data(
-  join_paths(scalable_dir, ('@0@-tray-light.svg').format(application_id)),
-  install_dir: join_paths(get_option('datadir'), 'icons', scalable_dir)
+  join_paths(symbolic_dir, ('@0@-tray-symbolic.svg').format(application_id)),
+  install_dir: join_paths(get_option('datadir'), 'icons', symbolic_dir)
 )
